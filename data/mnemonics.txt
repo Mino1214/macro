@@ -1,0 +1,4 @@
+word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12
+# 위 형식으로 한 줄당 12개 단어(니모닉)를 공백으로 구분해 적으세요.
+# 예시:
+# apple orange ... (총 12개)

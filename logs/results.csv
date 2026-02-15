@@ -1,0 +1,11 @@
+timestamp,status,balance,mnemonic,error
+2026-02-10 20:25:31,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: safepal.png
+2026-02-10 20:26:48,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: safepal.png
+2026-02-10 20:38:04,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: safepal.png
+2026-02-10 20:39:59,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: safepal.png
+2026-02-10 20:42:38,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: passwordinput.png
+2026-02-10 20:43:04,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: passwordinput.png
+2026-02-10 20:45:28,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: passwordinput.png
+2026-02-10 20:46:19,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: passwordinput.png
+2026-02-10 20:52:18,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: passwordinput.png
+2026-02-10 20:53:28,fail,0.0,word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12,timeout:템플릿을 찾지 못했습니다: passwordinput.png

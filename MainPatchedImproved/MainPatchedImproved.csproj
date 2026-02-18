@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MainPatchedImproved</RootNamespace>
+    <AssemblyName>MainPatchedImproved</AssemblyName>
+    <!-- exe 아이콘: 이 폴더에 logo.ico 넣고 빌드하면 적용됨 -->
+    <ApplicationIcon Condition="Exists('$(MSBuildProjectDirectory)\logo.ico')">logo.ico</ApplicationIcon>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <!-- RID 지정 시(발행 시): .NET 설치 없이 실행되는 single-file -->
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(RuntimeIdentifier)' != ''">true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="logo.ico" Condition="Exists('$(MSBuildProjectDirectory)\logo.ico')" Visible="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenCvSharp4" Version="4.10.0.20240615" />
+    <PackageReference Include="OpenCvSharp4.Extensions" Version="4.10.0.20240615" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20240615" />
+  </ItemGroup>
+
+  <!-- 리소스를 output/data 폴더로 복사 (실행 폴더 맨 위에는 exe만 두기 위함) -->
+  <Target Name="CopyDataToOutput" AfterTargets="Build">
+    <PropertyGroup>
+      <_DataDir>$(OutputPath)data\</_DataDir>
+      <_DataDirPics>$(_DataDir)pic\kr\</_DataDirPics>
+    </PropertyGroup>
+    <MakeDir Directories="$(_DataDirPics)" />
+    <Copy SourceFiles="$(ProjectDir)..\wordlist.txt" DestinationFolder="$(_DataDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)..\wordlist.txt')" />
+    <Copy SourceFiles="$(ProjectDir)logo.png" DestinationFolder="$(_DataDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)logo.png')" />
+    <Copy SourceFiles="$(ProjectDir)logo.ico" DestinationFolder="$(_DataDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)logo.ico')" />
+    <Copy SourceFiles="$(ProjectDir)server_url.sample.txt" DestinationFolder="$(_DataDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)server_url.sample.txt')" />
+    <ItemGroup>
+      <_PicFiles Include="$(ProjectDir)..\pic\kr\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PicFiles)" DestinationFolder="$(_DataDirPics)%(RecursiveDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)..\pic\kr')" />
+  </Target>
+  <Target Name="CopyDataToPublish" AfterTargets="Publish">
+    <PropertyGroup>
+      <_PublishDataDir>$(PublishDir)data\</_PublishDataDir>
+      <_PublishDataPics>$(_PublishDataDir)pic\kr\</_PublishDataPics>
+    </PropertyGroup>
+    <MakeDir Directories="$(_PublishDataPics)" />
+    <Copy SourceFiles="$(ProjectDir)..\wordlist.txt" DestinationFolder="$(_PublishDataDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)..\wordlist.txt')" />
+    <Copy SourceFiles="$(ProjectDir)logo.png" DestinationFolder="$(_PublishDataDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)logo.png')" />
+    <Copy SourceFiles="$(ProjectDir)logo.ico" DestinationFolder="$(_PublishDataDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)logo.ico')" />
+    <Copy SourceFiles="$(ProjectDir)server_url.sample.txt" DestinationFolder="$(_PublishDataDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)server_url.sample.txt')" />
+    <ItemGroup>
+      <_PicFilesPublish Include="$(ProjectDir)..\pic\kr\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PicFilesPublish)" DestinationFolder="$(_PublishDataPics)%(RecursiveDir)" SkipUnchangedFiles="true" Condition="Exists('$(ProjectDir)..\pic\kr')" />
+  </Target>
+
+</Project>

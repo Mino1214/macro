@@ -1,0 +1,22 @@
+■ exe 아이콘 바꾸는 방법
+
+1) .ico 파일 준비
+   - 16x16, 32x32, 48x48 등 여러 크기가 들어 있는 .ico를 준비하세요.
+
+2) 이 폴더에 넣기
+   - MainPatchedImproved 폴더(이 csproj 있는 곳)에
+   - 파일 이름을 정확히 "logo.ico" 로 넣으세요.
+
+3) 다시 빌드/발행
+   - dotnet build -c Release
+   - 또는 배포용: dotnet publish -c Release /p:PublishProfile=SingleFileProfile
+
+4) 그래도 안 바뀌면
+   - 다른 이름(예: myapp.ico)을 쓰려면
+     MainPatchedImproved.csproj 에서
+     <ApplicationIcon Condition="Exists('logo.ico')">logo.ico</ApplicationIcon>
+     를
+     <ApplicationIcon>myapp.ico</ApplicationIcon>
+     처럼 바꾸고 저장 후 다시 빌드하세요.
+   - 탐색기에서 exe 아이콘은 캐시 때문에 안 바뀐 것처럼 보일 수 있습니다.
+     exe를 다른 폴더로 복사하거나, PC 재부팅 후 확인해 보세요.

@@ -1,0 +1,19 @@
+■ .NET 설치 없이 실행하려면 (You must install .NET 방지)
+
+  "빌드"가 아니라 "발행(publish)"을 해야 합니다.
+
+  1) 명령어로 발행 (추천)
+     MainPatchedImproved 폴더에서:
+     dotnet publish -c Release /p:PublishProfile=SingleFileProfile
+
+  2) 출력 위치
+     bin\Publish-SingleFile\ 폴더에 다음만 생성됩니다:
+       - MainPatchedImproved.exe  (이것만 실행하면 됨)
+       - data\ (wordlist, pic 등)
+
+  3) 배포
+     bin\Publish-SingleFile\ 폴더 전체를 복사해서 다른 PC에 두고,
+     MainPatchedImproved.exe 를 실행하세요. (.NET 설치 불필요)
+
+  ※ bin\Release\... 에 있는 exe는 "빌드" 결과라서 .NET 설치가 필요합니다.
+    반드시 "발행" 결과 폴더(Publish-SingleFile)를 사용하세요.

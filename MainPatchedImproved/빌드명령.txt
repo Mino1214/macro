@@ -1,0 +1,35 @@
+■ 빌드/발행 명령 (PowerShell 또는 CMD)
+
+※ 배포용으로 쓸 거면 반드시 "발행(publish)" 해야 함. 일반 빌드(build)만 하면 Single-file·Self-contained 아님.
+※ 솔루션 루트(macro 폴더)에서 하면 다른 프로젝트에 SingleFileProfile 없다고 경고 남.
+  → 반드시 아래처럼 MainPatchedImproved 프로젝트만 지정하거나, 해당 폴더에서 실행.
+
+1) 배포용 발행 — Single-file + Self-contained (추천)
+   ※ .NET 설치 없이 실행 가능. publish\ 폴더 통째로 zip 으로 묶어서 옮기면 됨.
+   ※ 출력: MainPatchedImproved\publish\ (예전 bin\Publish-SingleFile 대신 publish\ 사용. 실행 중이어도 발행 가능)
+   ※ Access denied 나오면 exe 종료 후 다시 시도.
+
+   dotnet publish MainPatchedImproved\MainPatchedImproved.csproj -c Release /p:PublishProfile=SingleFileProfile
+
+   → 결과: MainPatchedImproved\publish\MainPatchedImproved.exe
+           MainPatchedImproved\publish\data\
+   → 배포: publish\ 폴더 전체를 zip 으로 압축해서 전달/이동
+
+2) MainPatchedImproved 폴더에서만 발행
+   cd MainPatchedImproved
+   dotnet publish -c Release /p:PublishProfile=SingleFileProfile
+   → 결과: publish\ (이 폴더 통째로 zip 으로 묶어서 배포)
+
+3) 일반 빌드만 (테스트용, Single-file 아님)
+   dotnet build MainPatchedImproved\MainPatchedImproved.csproj -c Release
+
+■ 로고 (logo.png / logo.ico) 넣는 위치
+  ▶ "실행하는 exe가 있는 폴더" 기준입니다. (바로가기로 실행해도 exe 파일이 있는 폴더)
+  ▶ 아래 둘 중 하나로 두면 됨.
+     • exe와 같은 폴더 안에 data 폴더 만들고 → data\logo.png , data\logo.ico
+     • exe와 같은 폴더에 바로 → logo.png , logo.ico
+
+  예시 (발행 후):
+    MainPatchedImproved\publish\MainPatchedImproved.exe   ← 실행 파일
+    MainPatchedImproved\publish\data\logo.png            ← 이렇게 있으면 로고 표시됨
+    MainPatchedImproved\publish\data\logo.ico

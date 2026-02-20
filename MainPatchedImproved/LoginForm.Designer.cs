@@ -23,6 +23,7 @@ partial class LoginForm
         this.buttonLogin = new Button();
         this.labelError = new Label();
         this.labelTelegram = new Label();
+        this.linkSwitchToRegister = new LinkLabel();
         this.panelMain.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)(this.pictureBoxLogo)).BeginInit();
         this.SuspendLayout();
@@ -41,12 +42,13 @@ partial class LoginForm
         this.panelMain.Controls.Add(this.textBoxId);
         this.panelMain.Controls.Add(this.labelPassword);
         this.panelMain.Controls.Add(this.textBoxPassword);
-        this.panelMain.Controls.Add(this.buttonLogin);
         this.panelMain.Controls.Add(this.labelError);
+        this.panelMain.Controls.Add(this.buttonLogin);
+        this.panelMain.Controls.Add(this.linkSwitchToRegister);
         this.panelMain.Controls.Add(this.labelTelegram);
         this.panelMain.Location = new Point(40, 40);
         this.panelMain.Name = "panelMain";
-        this.panelMain.Size = new Size(320, 360);
+        this.panelMain.Size = new Size(320, 410);
         this.panelMain.TabIndex = 0;
 
         // pictureBoxLogo (배경을 패널과 맞춰서 이미지가 확실히 그려지도록)
@@ -64,7 +66,7 @@ partial class LoginForm
         this.labelTitle.Location = new Point(20, 118);
         this.labelTitle.Name = "labelTitle";
         this.labelTitle.Size = new Size(280, 28);
-        this.labelTitle.Text = "Nexus v1.0.0";
+        this.labelTitle.Text = "Nexus v1.0.1";
         this.labelTitle.TextAlign = ContentAlignment.MiddleCenter;
 
         // labelId
@@ -104,42 +106,58 @@ partial class LoginForm
         this.textBoxPassword.Size = new Size(272, 25);
         this.textBoxPassword.TabIndex = 1;
 
-        // buttonLogin
+        // labelError: 비밀번호와 로그인 버튼 사이 전용 영역(가리지 않음)
+        this.labelError.AutoSize = true;
+        this.labelError.ForeColor = Color.FromArgb(255, 100, 100);
+        this.labelError.Location = new Point(24, 256);
+        this.labelError.MaximumSize = new Size(272, 36);
+        this.labelError.Name = "labelError";
+        this.labelError.Size = new Size(0, 15);
+        this.labelError.Visible = false;
+
+        // buttonLogin: 오류 문구 아래에 배치해 겹치지 않음
         this.buttonLogin.BackColor = accent;
         this.buttonLogin.Cursor = Cursors.Hand;
         this.buttonLogin.FlatAppearance.BorderSize = 0;
         this.buttonLogin.FlatStyle = FlatStyle.Flat;
         this.buttonLogin.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
         this.buttonLogin.ForeColor = Color.FromArgb(30, 30, 30);
-        this.buttonLogin.Location = new Point(24, 278);
+        this.buttonLogin.Location = new Point(24, 296);
         this.buttonLogin.Name = "buttonLogin";
         this.buttonLogin.Size = new Size(272, 44);
+        this.buttonLogin.TabIndex = 4;
         this.buttonLogin.Text = "로그인";
         this.buttonLogin.UseVisualStyleBackColor = false;
         this.buttonLogin.Click += ButtonLogin_Click;
 
-        // labelError (로그인 실패 시 버튼 위에 표시)
-        this.labelError.AutoSize = true;
-        this.labelError.ForeColor = Color.FromArgb(255, 100, 100);
-        this.labelError.Location = new Point(24, 256);
-        this.labelError.Name = "labelError";
-        this.labelError.Size = new Size(0, 15);
-        this.labelError.Visible = false;
+        // linkSwitchToRegister: 로그인 버튼 바로 아래
+        this.linkSwitchToRegister.ActiveLinkColor = accent;
+        this.linkSwitchToRegister.Font = new Font("Segoe UI", 9F);
+        this.linkSwitchToRegister.LinkColor = Color.FromArgb(150, 150, 150);
+        this.linkSwitchToRegister.Location = new Point(24, 346);
+        this.linkSwitchToRegister.Name = "linkSwitchToRegister";
+        this.linkSwitchToRegister.Size = new Size(272, 20);
+        this.linkSwitchToRegister.TabIndex = 10;
+        this.linkSwitchToRegister.TabStop = true;
+        this.linkSwitchToRegister.Text = "계정이 없으신가요? 회원가입";
+        this.linkSwitchToRegister.TextAlign = ContentAlignment.MiddleCenter;
+        this.linkSwitchToRegister.VisitedLinkColor = accent;
+        this.linkSwitchToRegister.LinkClicked += LinkSwitchToRegister_LinkClicked;
 
-        // labelTelegram (텔레그램 문의 - 서버에서 가져옴)
+        // labelTelegram (회원가입 링크 바로 밑)
         this.labelTelegram.Font = new Font("Segoe UI", 8F);
         this.labelTelegram.ForeColor = Color.FromArgb(150, 150, 150);
-        this.labelTelegram.Location = new Point(24, 328);
+        this.labelTelegram.Location = new Point(24, 370);
         this.labelTelegram.Name = "labelTelegram";
         this.labelTelegram.Size = new Size(272, 32);
         this.labelTelegram.Text = "서버 로그인 · 텔레그램 문의: (불러오는 중)";
         this.labelTelegram.TextAlign = ContentAlignment.TopCenter;
 
-        // LoginForm
-        this.AutoScaleDimensions = new SizeF(7F, 15F);
-        this.AutoScaleMode = AutoScaleMode.Font;
+        // LoginForm - DPI 기준 스케일로 고DPI에서도 화면 크기 유지
+        this.AutoScaleDimensions = new SizeF(96F, 96F);
+        this.AutoScaleMode = AutoScaleMode.Dpi;
         this.BackColor = bgDark;
-        this.ClientSize = new Size(400, 440);
+        this.ClientSize = new Size(400, 590);
         this.Controls.Add(this.panelMain);
         this.FormBorderStyle = FormBorderStyle.FixedSingle;
         this.MaximizeBox = false;
@@ -160,5 +178,6 @@ partial class LoginForm
     private TextBox textBoxPassword;
     private Button buttonLogin;
     private Label labelError;
+    private LinkLabel linkSwitchToRegister;
     private Label labelTelegram;
 }

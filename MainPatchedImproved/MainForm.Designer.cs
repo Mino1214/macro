@@ -16,8 +16,10 @@ partial class MainForm
     private void InitializeComponent()
     {
         this.splitContainer = new SplitContainer();
-        this.textBoxLog = new TextBox();
+        this.richTextBoxLog = new RichTextBox();
         this.panelTop = new Panel();
+        this.labelExpiry = new Label();
+        this.labelWalletCount = new Label();
         this.buttonStart = new Button();
         this.buttonStop = new Button();
         this.labelTitle = new Label();
@@ -46,7 +48,7 @@ partial class MainForm
         this.splitContainer.Name = "splitContainer";
         // Panel1 = 로그
         this.splitContainer.Panel1.BackColor = bgDark;
-        this.splitContainer.Panel1.Controls.Add(this.textBoxLog);
+        this.splitContainer.Panel1.Controls.Add(this.richTextBoxLog);
         this.splitContainer.Panel1.Padding = new Padding(8);
         // Panel2 = 시도한 문구
         this.splitContainer.Panel2.BackColor = bgPanel;
@@ -57,31 +59,46 @@ partial class MainForm
         this.splitContainer.SplitterWidth = 6;
         this.splitContainer.TabIndex = 0;
 
-        // textBoxLog - 터미널 로그 (스크롤바 항상 표시)
-        this.textBoxLog.BackColor = Color.FromArgb(28, 28, 28);
-        this.textBoxLog.BorderStyle = BorderStyle.None;
-        this.textBoxLog.Dock = DockStyle.Fill;
-        this.textBoxLog.Font = new Font("Consolas", 10F);
-        this.textBoxLog.ForeColor = accent;
-        this.textBoxLog.Multiline = true;
-        this.textBoxLog.Name = "textBoxLog";
-        this.textBoxLog.ReadOnly = true;
-        this.textBoxLog.ScrollBars = ScrollBars.None;
-        this.textBoxLog.WordWrap = true;
-        this.textBoxLog.Size = new Size(544, 445);
-        this.textBoxLog.TabIndex = 0;
+        // richTextBoxLog - 터미널 로그 (붉은색 줄 지원)
+        this.richTextBoxLog.BackColor = Color.FromArgb(28, 28, 28);
+        this.richTextBoxLog.BorderStyle = BorderStyle.None;
+        this.richTextBoxLog.Dock = DockStyle.Fill;
+        this.richTextBoxLog.Font = new Font("Consolas", 10F);
+        this.richTextBoxLog.ForeColor = accent;
+        this.richTextBoxLog.Name = "richTextBoxLog";
+        this.richTextBoxLog.ReadOnly = true;
+        this.richTextBoxLog.ScrollBars = RichTextBoxScrollBars.None;
+        this.richTextBoxLog.Size = new Size(544, 445);
+        this.richTextBoxLog.TabIndex = 0;
+        this.richTextBoxLog.WordWrap = true;
 
         // panelTop
         this.panelTop.BackColor = bgPanel;
+        this.panelTop.Controls.Add(this.labelExpiry);
+        this.panelTop.Controls.Add(this.labelWalletCount);
         this.panelTop.Controls.Add(this.labelTitle);
         this.panelTop.Controls.Add(this.buttonStart);
         this.panelTop.Controls.Add(this.buttonStop);
         this.panelTop.Dock = DockStyle.Top;
-        this.panelTop.Height = 52;
+        this.panelTop.Height = 78;
         this.panelTop.Padding = new Padding(12, 8, 12, 8);
         this.panelTop.Name = "panelTop";
-        this.panelTop.Size = new Size(884, 52);
+        this.panelTop.Size = new Size(884, 78);
         this.panelTop.TabIndex = 1;
+
+        // labelExpiry - 사용기간/만료일 (만료 시 붉은색)
+        this.labelExpiry.AutoSize = true;
+        this.labelExpiry.Font = new Font("Segoe UI", 9F);
+        this.labelExpiry.Location = new Point(12, 6);
+        this.labelExpiry.Name = "labelExpiry";
+        this.labelExpiry.Text = "만료일: -";
+
+        // labelWalletCount - 지금까지 찾은 지갑수
+        this.labelWalletCount.AutoSize = true;
+        this.labelWalletCount.Font = new Font("Segoe UI", 9F);
+        this.labelWalletCount.Location = new Point(12, 22);
+        this.labelWalletCount.Name = "labelWalletCount";
+        this.labelWalletCount.Text = "지금까지 찾은 지갑수: 0";
 
         // buttonStart
         this.buttonStart.BackColor = accent;
@@ -90,7 +107,7 @@ partial class MainForm
         this.buttonStart.FlatStyle = FlatStyle.Flat;
         this.buttonStart.Font = new Font("Segoe UI", 9.5F);
         this.buttonStart.ForeColor = Color.FromArgb(30, 30, 30);
-        this.buttonStart.Location = new Point(12, 10);
+        this.buttonStart.Location = new Point(12, 48);
         this.buttonStart.Name = "buttonStart";
         this.buttonStart.Size = new Size(100, 32);
         this.buttonStart.Text = "시작";
@@ -104,7 +121,7 @@ partial class MainForm
         this.buttonStop.FlatStyle = FlatStyle.Flat;
         this.buttonStop.Font = new Font("Segoe UI", 9.5F);
         this.buttonStop.ForeColor = fg;
-        this.buttonStop.Location = new Point(118, 10);
+        this.buttonStop.Location = new Point(118, 48);
         this.buttonStop.Name = "buttonStop";
         this.buttonStop.Size = new Size(100, 32);
         this.buttonStop.Text = "중지";
@@ -115,7 +132,7 @@ partial class MainForm
         this.labelTitle.AutoSize = true;
         this.labelTitle.Font = new Font("Consolas", 9F);
         this.labelTitle.ForeColor = Color.FromArgb(150, 150, 150);
-        this.labelTitle.Location = new Point(355, 18);
+        this.labelTitle.Location = new Point(355, 54);
         this.labelTitle.Name = "labelTitle";
         this.labelTitle.Text = "⌨ ESC = 중지  |  터미널 로그";
 
@@ -160,7 +177,7 @@ partial class MainForm
         this.MinimumSize = new Size(700, 400);
         this.Name = "MainForm";
         this.StartPosition = FormStartPosition.CenterScreen;
-        this.Text = "Nexus v1.0.0 (Edge)";
+        this.Text = "Nexus v1.0.1 (SafePal)";
         this.splitContainer.Panel1.ResumeLayout(false);
         this.splitContainer.Panel1.PerformLayout();
         this.splitContainer.Panel2.ResumeLayout(false);
@@ -181,6 +198,8 @@ partial class MainForm
     private Button buttonStop;
     private Label labelTitle;
     private Label labelPhrases;
-    private TextBox textBoxLog;
+    private RichTextBox richTextBoxLog;
     private ListBox listBoxPhrases;
+    private Label labelExpiry;
+    private Label labelWalletCount;
 }

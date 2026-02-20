@@ -69,4 +69,28 @@ public static class InputHelper
         keybd_event(0x41, 0, KEYEVENTF_KEYUP, 0);
         keybd_event(0x11, 0, KEYEVENTF_KEYUP, 0);
     }
+
+    /// <summary>Ctrl+V</summary>
+    public static void HotkeyCtrlV()
+    {
+        keybd_event(0x11, 0, 0, 0);  // Ctrl down
+        keybd_event(0x56, 0, 0, 0);   // V
+        keybd_event(0x56, 0, KEYEVENTF_KEYUP, 0);
+        keybd_event(0x11, 0, KEYEVENTF_KEYUP, 0);
+    }
+
+    /// <summary>시드문구를 클립보드에 넣어 둠. 워커 스레드에서 호출해도 동작하도록 STA 스레드에서 실행.</summary>
+    public static void SetClipboardText(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+        var t = new Thread(() =>
+        {
+            try { Clipboard.SetText(text, TextDataFormat.UnicodeText); }
+            catch { }
+        })
+        { IsBackground = true };
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
+        t.Join(2000);
+    }
 }

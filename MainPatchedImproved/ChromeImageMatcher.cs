@@ -1,6 +1,5 @@
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Reflection;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
 
@@ -11,8 +10,8 @@ namespace MainPatchedImproved;
 /// </summary>
 public static class ChromeImageMatcher
 {
-    /// <summary>실행 파일(.exe)이 있는 폴더 (Single-file일 때 ProcessPath 사용)</summary>
-    public static readonly string ExeDir = Path.GetDirectoryName(Environment.ProcessPath ?? Assembly.GetExecutingAssembly().Location)?.TrimEnd(Path.DirectorySeparatorChar) ?? AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+    /// <summary>실행 파일(.exe)이 있는 폴더. Single-file 배포 시 Assembly.Location은 빈 문자열이므로 BaseDirectory 사용.</summary>
+    public static readonly string ExeDir = (Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory ?? ".").TrimEnd(Path.DirectorySeparatorChar);
     /// <summary>리소스/설정 저장 폴더 (exe 옆 data). wordlist, pic, logo, server_url 등</summary>
     public static readonly string BaseDir = Path.Combine(ExeDir, "data");
     public static readonly string PicsKr = Path.Combine(BaseDir, "pic", "kr");
@@ -303,13 +302,13 @@ public static class ChromeImageMatcher
     }
 
     /// <summary>
-    /// [3] 햄버거 메뉴 감지와 완전히 동일한 방식으로 찾고, 찾으면 그 위치 클릭. (CaptureAndDetectTemplate + 클릭)
+    /// CaptureAndDetect 방식으로 템플릿을 찾아 클릭할 절대 좌표만 반환 (클릭 안 함). 1회차 위치 기록·2회차 재사용용.
     /// </summary>
-    public static bool ClickFromCaptureAndDetect(string templateName, double threshold = 0.7, double delaySec = 0.15)
+    public static (int X, int Y)? GetCaptureAndDetectClickPosition(string templateName, double threshold = 0.7)
     {
         var (mat, captureRect, result) = CaptureAndDetectTemplate(templateName, threshold);
         using (mat) { }
-        if (captureRect == null || result == null) return false;
+        if (captureRect == null || result == null) return null;
 
         var ((relX, relY), confidence, scale) = result.Value;
         int absX = captureRect.Value.X + relX;
@@ -322,8 +321,18 @@ public static class ChromeImageMatcher
                 absY += (int)(tpl.Height * scale) / 2;
             }
         }
-        if (Debug) AppLog.WriteLine($"  [클릭] {templateName} → ({absX}, {absY}) 신뢰도: {confidence:F3}");
-        InputHelper.Click(absX, absY);
+        return (absX, absY);
+    }
+
+    /// <summary>
+    /// [3] 햄버거 메뉴 감지와 완전히 동일한 방식으로 찾고, 찾으면 그 위치 클릭. (CaptureAndDetectTemplate + 클릭)
+    /// </summary>
+    public static bool ClickFromCaptureAndDetect(string templateName, double threshold = 0.7, double delaySec = 0.15)
+    {
+        var pos = GetCaptureAndDetectClickPosition(templateName, threshold);
+        if (pos == null) return false;
+        if (Debug) AppLog.WriteLine($"  [클릭] {templateName} → ({pos.Value.X}, {pos.Value.Y})");
+        InputHelper.Click(pos.Value.X, pos.Value.Y);
         Thread.Sleep((int)(delaySec * 1000));
         return true;
     }

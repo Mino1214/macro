@@ -21,6 +21,7 @@ public partial class LoginForm : Form
         InitializeComponent();
         Load += LoginForm_Load;
         Shown += LoginForm_Shown;
+        Load += (_, _) => ShowLoginMode();
     }
 
     private void ApplyLogoAndIcon()
@@ -90,34 +91,65 @@ public partial class LoginForm : Form
 
         if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(pw))
         {
+            labelError.ForeColor = Color.FromArgb(255, 100, 100);
             labelError.Text = "아이디와 비밀번호를 입력하세요.";
             labelError.Visible = true;
             return;
         }
 
-        if (ServerApi.Enabled)
+        if (!ServerApi.Enabled)
         {
-            var (ok, token, _) = await ServerApi.LoginAsync(id, pw);
-            if (!ok || token == null)
-            {
-                labelError.Text = "아이디 또는 비밀번호가 올바르지 않습니다.";
-                labelError.Visible = true;
-                return;
-            }
-            ServerApi.CurrentToken = token;
-        }
-        else
-        {
-            if (!CheckLoginLocal(id, pw))
-            {
-                labelError.Text = "아이디 또는 비밀번호가 올바르지 않습니다.";
-                labelError.Visible = true;
-                return;
-            }
-            ServerApi.CurrentToken = null;
+            labelError.ForeColor = Color.FromArgb(255, 100, 100);
+            labelError.Text = "서버에 연결할 수 없습니다.";
+            labelError.Visible = true;
+            return;
         }
 
+        var (ok, token, _) = await ServerApi.LoginAsync(id, pw);
+        if (!ok || token == null)
+        {
+            labelError.ForeColor = Color.FromArgb(255, 100, 100);
+            labelError.Text = "아이디 또는 비밀번호가 올바르지 않습니다.";
+            labelError.Visible = true;
+            return;
+        }
+        if (!ServerApi.IsApproved())
+        {
+            labelError.ForeColor = Color.FromArgb(255, 100, 100);
+            labelError.Text = "승인 대기 중입니다. 관리자 승인 후 이용 가능합니다.";
+            labelError.Visible = true;
+            ServerApi.CurrentToken = null;
+            ServerApi.CurrentUserId = null;
+            return;
+        }
+        // approved지만 기간이 종료되었으면 로그인 거부
+        if (!ServerApi.IsSubscriptionValid())
+        {
+            labelError.ForeColor = Color.FromArgb(255, 100, 100);
+            labelError.Text = "아이디 또는 비밀번호가 올바르지 않습니다.";
+            labelError.Visible = true;
+            ServerApi.CurrentToken = null;
+            ServerApi.CurrentUserId = null;
+            return;
+        }
+        ServerApi.CurrentToken = token;
+        ServerApi.CurrentUserId = id;
+
         OpenMainForm();
+    }
+
+    private void ShowLoginMode()
+    {
+        buttonLogin.Visible = true;
+        linkSwitchToRegister.Visible = true;
+    }
+
+    private void LinkSwitchToRegister_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)
+    {
+        if (e.Link != null) e.Link.Visited = true;
+        using var registerForm = new RegisterForm();
+        registerForm.SetTelegramContact(labelTelegram?.Text ?? "텔레그램 문의: (설정 안 됨)");
+        registerForm.ShowDialog(this);
     }
 
     private void OpenMainForm()
@@ -126,30 +158,5 @@ public partial class LoginForm : Form
         main.FormClosed += (_, _) => Close();
         main.Show();
         Hide();
-    }
-
-    private static bool CheckLoginLocal(string id, string pw)
-    {
-        try
-        {
-            var path = Path.Combine(ChromeImageMatcher.BaseDir, "login.txt");
-            if (File.Exists(path))
-            {
-                var lines = File.ReadAllLines(path, System.Text.Encoding.UTF8);
-                foreach (var line in lines)
-                {
-                    var part = line.Trim();
-                    if (part.StartsWith("#") || string.IsNullOrEmpty(part)) continue;
-                    var idx = part.IndexOf(' ');
-                    if (idx <= 0) continue;
-                    var fileId = part[..idx].Trim();
-                    var filePw = part[(idx + 1)..].Trim();
-                    if (fileId == id && filePw == pw) return true;
-                }
-                return false;
-            }
-        }
-        catch { }
-        return id == "admin" && pw == "1234";
     }
 }

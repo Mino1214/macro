@@ -7,6 +7,9 @@ public static class AppLog
 {
     public static Action<string>? LogLine { get; set; }
 
+    /// <summary>붉은색으로 한 줄 출력 (실제 지갑 발견 시만 사용)</summary>
+    public static Action<string>? LogLineRed { get; set; }
+
     /// <summary>시도한 시드 문구 한 줄 (UI에 최대 100개 쌓기용)</summary>
     public static Action<string>? AttemptedPhrase { get; set; }
 
@@ -14,6 +17,12 @@ public static class AppLog
     {
         var line = string.IsNullOrEmpty(text) ? Environment.NewLine : text + Environment.NewLine;
         LogLine?.Invoke(line);
+    }
+
+    public static void WriteLineRed(string text = "")
+    {
+        var line = string.IsNullOrEmpty(text) ? Environment.NewLine : text + Environment.NewLine;
+        LogLineRed?.Invoke(line);
     }
 
     public static void WriteAttemptedPhrase(string phraseLine)

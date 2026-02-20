@@ -16,6 +16,9 @@ public static class MainLoop
     /// <summary>1회차 때 찾은 슬롯 1~12 클릭 좌표. 2회차부터 이 위치로 기입.</summary>
     private static readonly (int X, int Y)?[] SlotPositions = new (int X, int Y)?[12];
 
+    /// <summary>1회차 때 찾은 First Set(햄버거 등) 클릭 좌표. 2회차부터는 인식 없이 이 좌표로 클릭.</summary>
+    private static readonly (int X, int Y)?[] FirstSetPositions = new (int X, int Y)?[5];
+
     /// <summary>단계별 테스트용: First Set 단계 이름 목록</summary>
     public static string[] GetFirstSetStepNames() => (string[])FirstSetClickOrder.Clone();
     /// <summary>단계별 테스트용: Second Set 슬롯 이름 목록</summary>
@@ -98,11 +101,28 @@ public static class MainLoop
     }
 
     /// <summary>
-    /// 3 햄버거 / 4,5,6,7: [3] 햄버거 메뉴 감지와 동일한 방식(CaptureAndDetectTemplate)으로 찾고 클릭.
+    /// 3 햄버거 / 4,5,6,7: 1회차에는 인식한 위치를 기록하고, 2회차부터는 기록한 좌표로만 클릭 (간헐적 인식 오류 방지).
     /// </summary>
     public static bool RunFirstSetStep(string imageName)
     {
-        return ChromeImageMatcher.ClickFromCaptureAndDetect(imageName, 0.7, 0.15);
+        int idx = Array.IndexOf(FirstSetClickOrder, imageName);
+        if (idx < 0) return false;
+
+        if (FirstSetPositions[idx] is { } saved)
+        {
+            Thread.Sleep(200); // UI 안정 대기
+            ChromeImageMatcher.ClickAt(saved.X, saved.Y, 0.4);
+            if (ChromeImageMatcher.Debug) AppLog.WriteLine($"  [First Set] {imageName} 캐시 좌표로 클릭 ({saved.X}, {saved.Y})");
+            return true;
+        }
+
+        var pos = ChromeImageMatcher.GetCaptureAndDetectClickPosition(imageName, 0.7);
+        if (pos == null) return false;
+        FirstSetPositions[idx] = pos.Value;
+        Thread.Sleep(200);
+        ChromeImageMatcher.ClickAt(pos.Value.X, pos.Value.Y, 0.4);
+        if (ChromeImageMatcher.Debug) AppLog.WriteLine($"  [First Set] {imageName} 인식 후 좌표 기록·클릭 ({pos.Value.X}, {pos.Value.Y})");
+        return true;
     }
 
     /// <summary>
@@ -117,82 +137,76 @@ public static class MainLoop
             string step = FirstSetClickOrder[i];
             bool ok = RunFirstSetStep(step);
             if (ChromeImageMatcher.Debug) AppLog.WriteLine(ok ? $"  {i + 1}/{n} {step} 클릭함" : $"  {i + 1}/{n} {step} 못 찾음");
-            Thread.Sleep(400);
+            Thread.Sleep(650); // 단계마다 화면 전환·UI 반영 대기
         }
     }
 
     /// <summary>
-    /// Second Set: 1~12 각 슬롯 클릭 → (선택) Ctrl+A → 문구 기입. 모두 채운 뒤 마지막에 next 한 번.
-    /// 1회차 때 슬롯 위치를 SlotPositions에 저장해 두고, 2회차부터는 그 좌표로 클릭.
+    /// Second Set 1회차: 시드문구를 클립보드에 넣고, 1번 슬롯만 인식·클릭 후 Ctrl+V → next. (2회차부터는 RunSecondSetRetry에서 1번만 사용)
     /// </summary>
     public static void RunSecondSet(string[] words12, bool useCtrlA)
     {
         if (words12.Length < 12) return;
-        for (int i = 0; i < SecondSetSlots.Length; i++)
-        {
-            if (CheckStop()) return;
-            string slot = SecondSetSlots[i];
-            int wordIdx = SecondSetWordIndices[i];
-            string word = words12[wordIdx];
-            var pos = ChromeImageMatcher.GetImageClickPosition(slot, ChromeImageMatcher.StateMatchThreshold);
-            if (pos != null)
-            {
-                SlotPositions[i] = pos.Value;
-                ChromeImageMatcher.ClickAt(pos.Value.X, pos.Value.Y, 0.1);
-            }
-            else if (SlotPositions[i] is { } savedPos)
-            {
-                // 이미지 못 찾아도 이전에 기억한 좌표로 클릭 (한 번 저장하면 유지)
-                ChromeImageMatcher.ClickAt(savedPos.X, savedPos.Y, 0.1);
-            }
-            else
-            {
-                if (ChromeImageMatcher.ClickImage(slot, ChromeImageMatcher.StateMatchThreshold, 0.1))
-                {
-                    var again = ChromeImageMatcher.GetImageClickPosition(slot, ChromeImageMatcher.StateMatchThreshold);
-                    if (again != null) SlotPositions[i] = again.Value;
-                }
-                else if (ChromeImageMatcher.Debug) AppLog.WriteLine($"  ⚠ Second Set 슬롯 {slot} 이미지 못 찾음 (좌표도 없음)");
-            }
-            if (useCtrlA)
-            {
-                InputHelper.HotkeyCtrlA();
-                Thread.Sleep(30);
-            }
-            InputHelper.TypeText(word, 20);
-            Thread.Sleep(80);
-        }
+        string phrase = string.Join(" ", words12);
+        InputHelper.SetClipboardText(phrase);
+        Thread.Sleep(150); // 클립보드 설정 완료 대기
+
         if (CheckStop()) return;
-        ChromeImageMatcher.ClickImage("next", ChromeImageMatcher.StateMatchThreshold, 0.2);
-        Thread.Sleep(300);
-        if (ChromeImageMatcher.Debug) AppLog.WriteLine($"  [Second Set] 완료 (useCtrlA={useCtrlA})");
+        Thread.Sleep(300); // 니모닉 화면 안정 대기
+        // 1번 슬롯만 찾아서 위치 기록 후 클릭
+        var pos = ChromeImageMatcher.GetImageClickPosition("1", ChromeImageMatcher.StateMatchThreshold);
+        if (pos != null)
+        {
+            SlotPositions[0] = pos.Value;
+            ChromeImageMatcher.ClickAt(pos.Value.X, pos.Value.Y, 0.4);
+        }
+        else if (SlotPositions[0] is { } savedPos)
+        {
+            ChromeImageMatcher.ClickAt(savedPos.X, savedPos.Y, 0.4);
+        }
+        else
+        {
+            if (ChromeImageMatcher.ClickImage("1", ChromeImageMatcher.StateMatchThreshold, 0.4))
+            {
+                var again = ChromeImageMatcher.GetImageClickPosition("1", ChromeImageMatcher.StateMatchThreshold);
+                if (again != null) SlotPositions[0] = again.Value;
+            }
+            else if (ChromeImageMatcher.Debug) AppLog.WriteLine("  ⚠ Second Set 슬롯 1 이미지 못 찾음");
+        }
+        Thread.Sleep(550); // 입력란 포커스 대기 (클릭 후 입력란 활성화 시간)
+        InputHelper.HotkeyCtrlV();
+        Thread.Sleep(400); // 붙여넣기 완료 대기
+        if (CheckStop()) return;
+        ChromeImageMatcher.ClickImage("next", ChromeImageMatcher.StateMatchThreshold, 0.45);
+        Thread.Sleep(600);
+        if (ChromeImageMatcher.Debug) AppLog.WriteLine("  [Second Set] 1회차 완료 (1번 클릭 + Ctrl+V)");
     }
 
     /// <summary>
-    /// 2회차용: 1회차 때 저장한 SlotPositions로 1~12 전부 채운 뒤 마지막에 next 한 번 (1회차와 동일한 방식).
+    /// 2회차용: 1번만 캐시 좌표로 클릭 → Ctrl+A → Ctrl+V → 시드문구 클립보드에 복사 → next. (타이핑 없이 붙여넣기로 빠르게)
     /// </summary>
     public static bool RunSecondSetRetry(string[] words12)
     {
         if (words12.Length < 12) return false;
-        for (int i = 0; i < SecondSetSlots.Length; i++)
+        if (SlotPositions[0] is not { } pos)
         {
-            if (CheckStop()) return false;
-            if (SlotPositions[i] is not { } pos)
-            {
-                if (ChromeImageMatcher.Debug) AppLog.WriteLine($"  ⚠ 2회차 슬롯 {SecondSetSlots[i]} 위치 없음(1회차에서 못 찾음) → 생략");
-                continue;
-            }
-            string word = words12[SecondSetWordIndices[i]];
-            ChromeImageMatcher.ClickAt(pos.X, pos.Y, 0.1);
-            Thread.Sleep(200); // 입력란 포커스 대기
-            InputHelper.HotkeyCtrlA();
-            Thread.Sleep(30);
-            InputHelper.TypeText(word, 20);
-            Thread.Sleep(80);
+            if (ChromeImageMatcher.Debug) AppLog.WriteLine("  ⚠ 2회차 슬롯 1 위치 없음(1회차에서 못 찾음)");
+            return false;
         }
         if (CheckStop()) return false;
-        ChromeImageMatcher.ClickImage("next", ChromeImageMatcher.StateMatchThreshold, 0.2);
-        Thread.Sleep(3000); // success 화면 뜰 때까지 3초 대기 후 체크
+        string phrase = string.Join(" ", words12);
+        InputHelper.SetClipboardText(phrase); // 먼저 클립보드 설정
+        Thread.Sleep(150); // 클립보드 설정 완료 대기
+        Thread.Sleep(250); // 재시도 전 화면 안정 대기
+        ChromeImageMatcher.ClickAt(pos.X, pos.Y, 0.4);
+        Thread.Sleep(550); // 입력란 포커스 대기
+        InputHelper.HotkeyCtrlA();
+        Thread.Sleep(120);
+        InputHelper.HotkeyCtrlV();
+        Thread.Sleep(400); // 붙여넣기 완료 대기
+        if (CheckStop()) return false;
+        ChromeImageMatcher.ClickImage("next", ChromeImageMatcher.StateMatchThreshold, 0.45);
+        Thread.Sleep(3000);
         return HasSuccess();
     }
 

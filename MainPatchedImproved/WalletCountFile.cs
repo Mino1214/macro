@@ -1,11 +1,11 @@
 namespace MainPatchedImproved;
 
 /// <summary>
-/// data/wallet_count.txt 에 지금까지 찾은 지갑 수 저장·읽기 (한 줄 정수)
+/// data/mnemonic_attempt_count.txt 에 니모닉문구 시도 횟수 저장·읽기 (한 줄 정수)
 /// </summary>
 public static class WalletCountFile
 {
-    private static string FilePath => System.IO.Path.Combine(ChromeImageMatcher.BaseDir, "wallet_count.txt");
+    private static string FilePath => System.IO.Path.Combine(ChromeImageMatcher.BaseDir, "mnemonic_attempt_count.txt");
 
     public static int Read()
     {

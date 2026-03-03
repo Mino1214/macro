@@ -31,6 +31,7 @@ public partial class MainForm : Form
         InitializeComponent();
         AppLog.LogLine = AppendLog;
         AppLog.LogLineRed = AppendLogRed;
+        AppLog.LogReplaceLastLine = ReplaceLogLastLine;
         AppLog.AttemptedPhrase = AddAttemptedPhrase;
         FormClosing += MainForm_FormClosing;
         Load += MainForm_Load;
@@ -138,6 +139,31 @@ public partial class MainForm : Form
         richTextBoxLog.ScrollToCaret();
     }
 
+    /// <summary>마지막 줄이 '시도중'이면 지우고 새 텍스트로 갱신 (한 줄만 덮어쓰기)</summary>
+    private void ReplaceLogLastLine(string text)
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(() => ReplaceLogLastLine(text));
+            return;
+        }
+        var full = richTextBoxLog.Text;
+        var nl = full.LastIndexOf('\n');
+        if (nl >= 0)
+        {
+            var lastLine = full.Substring(nl + 1);
+            if (lastLine.Contains("시도중"))
+            {
+                richTextBoxLog.Text = full.Substring(0, nl + 1);
+                richTextBoxLog.SelectionStart = richTextBoxLog.TextLength;
+            }
+        }
+        richTextBoxLog.SelectionLength = 0;
+        richTextBoxLog.SelectionColor = LogAccent;
+        richTextBoxLog.AppendText(text + Environment.NewLine);
+        richTextBoxLog.ScrollToCaret();
+    }
+
     private void RefreshExpiryLabel()
     {
         var exp = ServerApi.SubscriptionExpiry;
@@ -155,7 +181,7 @@ public partial class MainForm : Form
     private void RefreshWalletCount()
     {
         var n = WalletCountFile.Read();
-        labelWalletCount.Text = "지금까지 찾은 지갑수: " + n;
+        labelWalletCount.Text = "니모닉문구 시도 횟수: " + n;
     }
 
     private void ButtonStart_Click(object? sender, EventArgs e)
@@ -174,6 +200,13 @@ public partial class MainForm : Form
         buttonStart.Enabled = false;
         buttonStop.Enabled = true;
         richTextBoxLog.Clear();
+        MainLoopTrustWallet.Password = textBoxPassword?.Text?.Trim() ?? "";
+        AutomationRunner.RunMode = comboBoxMode.SelectedIndex switch
+        {
+            1 => AutomationRunner.Mode.TrustWallet,
+            2 => AutomationRunner.Mode.TronNetwork,
+            _ => AutomationRunner.Mode.SafePal
+        };
 
         // ESC 폴링: 핫키가 안 먹을 때 대비해 200ms마다 ESC 키 감지
         _escCheckTimer?.Stop();
@@ -226,6 +259,20 @@ public partial class MainForm : Form
         if (!_running) return;
         AppLog.WriteLine("중지");
         MainLoop.StopFlag = true;
+    }
+
+    private void ButtonPasswordShow_Click(object? sender, EventArgs e)
+    {
+        if (textBoxPassword.PasswordChar == '*')
+        {
+            textBoxPassword.PasswordChar = '\0';
+            buttonPasswordShow.Text = "숨기기";
+        }
+        else
+        {
+            textBoxPassword.PasswordChar = '*';
+            buttonPasswordShow.Text = "보기";
+        }
     }
 
 }

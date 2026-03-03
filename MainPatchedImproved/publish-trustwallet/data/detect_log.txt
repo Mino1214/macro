@@ -1,0 +1,1 @@
+﻿[2026-02-21 21:25:16] SafePal 모드 시작. BaseDir=C:\Users\alsdh\OneDrive\Desktop\macro\MainPatchedImproved\publish-trustwallet\data

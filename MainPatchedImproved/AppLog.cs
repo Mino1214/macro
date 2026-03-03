@@ -13,6 +13,14 @@ public static class AppLog
     /// <summary>시도한 시드 문구 한 줄 (UI에 최대 100개 쌓기용)</summary>
     public static Action<string>? AttemptedPhrase { get; set; }
 
+    /// <summary>마지막 줄을 지우고 이 내용으로 갱신 (Tron 모드 시도 중 카운트 등)</summary>
+    public static Action<string>? LogReplaceLastLine { get; set; }
+
+    public static void ReplaceLastLine(string text)
+    {
+        LogReplaceLastLine?.Invoke(text);
+    }
+
     public static void WriteLine(string text = "")
     {
         var line = string.IsNullOrEmpty(text) ? Environment.NewLine : text + Environment.NewLine;

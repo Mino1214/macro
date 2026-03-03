@@ -20,6 +20,12 @@ partial class MainForm
         this.panelTop = new Panel();
         this.labelExpiry = new Label();
         this.labelWalletCount = new Label();
+        this.labelPassword = new Label();
+        this.textBoxPassword = new TextBox();
+        this.labelMode = new Label();
+        this.comboBoxMode = new ComboBox();
+        this.buttonPasswordShow = new Button();
+        this.toolTipMain = new ToolTip();
         this.buttonStart = new Button();
         this.buttonStop = new Button();
         this.labelTitle = new Label();
@@ -76,6 +82,11 @@ partial class MainForm
         this.panelTop.BackColor = bgPanel;
         this.panelTop.Controls.Add(this.labelExpiry);
         this.panelTop.Controls.Add(this.labelWalletCount);
+        this.panelTop.Controls.Add(this.labelPassword);
+        this.panelTop.Controls.Add(this.textBoxPassword);
+        this.panelTop.Controls.Add(this.buttonPasswordShow);
+        this.panelTop.Controls.Add(this.labelMode);
+        this.panelTop.Controls.Add(this.comboBoxMode);
         this.panelTop.Controls.Add(this.labelTitle);
         this.panelTop.Controls.Add(this.buttonStart);
         this.panelTop.Controls.Add(this.buttonStop);
@@ -93,12 +104,61 @@ partial class MainForm
         this.labelExpiry.Name = "labelExpiry";
         this.labelExpiry.Text = "만료일: -";
 
-        // labelWalletCount - 지금까지 찾은 지갑수
+        // labelWalletCount - 니모닉문구 시도 횟수
         this.labelWalletCount.AutoSize = true;
         this.labelWalletCount.Font = new Font("Segoe UI", 9F);
         this.labelWalletCount.Location = new Point(12, 22);
         this.labelWalletCount.Name = "labelWalletCount";
-        this.labelWalletCount.Text = "지금까지 찾은 지갑수: 0";
+        this.labelWalletCount.Text = "니모닉문구 시도 횟수: 0";
+
+        // labelPassword - 비밀번호 (레이블만 짧게, 툴팁에 삭제용 설명)
+        this.labelPassword.AutoSize = true;
+        this.labelPassword.Font = new Font("Segoe UI", 9F);
+        this.labelPassword.ForeColor = fg;
+        this.labelPassword.Location = new Point(230, 22);
+        this.labelPassword.Name = "labelPassword";
+        this.labelPassword.Text = "비밀번호";
+        this.toolTipMain.SetToolTip(this.labelPassword, "Trust/SafePal 지갑 삭제 시 사용");
+
+        // textBoxPassword - 레이블과 겹치지 않게 오른쪽에 배치
+        this.textBoxPassword.Font = new Font("Segoe UI", 9F);
+        this.textBoxPassword.Location = new Point(295, 19);
+        this.textBoxPassword.Name = "textBoxPassword";
+        this.textBoxPassword.PasswordChar = '*';
+        this.textBoxPassword.Size = new Size(92, 23);
+        this.textBoxPassword.TabIndex = 0;
+
+        // buttonPasswordShow - 비밀번호 보기/숨기기
+        this.buttonPasswordShow.BackColor = Color.FromArgb(60, 60, 60);
+        this.buttonPasswordShow.Cursor = Cursors.Hand;
+        this.buttonPasswordShow.FlatAppearance.BorderSize = 0;
+        this.buttonPasswordShow.FlatStyle = FlatStyle.Flat;
+        this.buttonPasswordShow.Font = new Font("Segoe UI", 8F);
+        this.buttonPasswordShow.ForeColor = fg;
+        this.buttonPasswordShow.Location = new Point(390, 19);
+        this.buttonPasswordShow.Name = "buttonPasswordShow";
+        this.buttonPasswordShow.Size = new Size(32, 23);
+        this.buttonPasswordShow.Text = "보기";
+        this.buttonPasswordShow.UseVisualStyleBackColor = false;
+        this.buttonPasswordShow.Click += ButtonPasswordShow_Click;
+
+        // labelMode
+        this.labelMode.AutoSize = true;
+        this.labelMode.Font = new Font("Segoe UI", 9F);
+        this.labelMode.ForeColor = fg;
+        this.labelMode.Location = new Point(230, 50);
+        this.labelMode.Name = "labelMode";
+        this.labelMode.Text = "모드";
+
+        // comboBoxMode - SafePal / Trust Wallet / Tron Network
+        this.comboBoxMode.DropDownStyle = ComboBoxStyle.DropDownList;
+        this.comboBoxMode.Font = new Font("Segoe UI", 9F);
+        this.comboBoxMode.Items.AddRange(new object[] { "SafePal", "Trust Wallet", "Tron Network" });
+        this.comboBoxMode.Location = new Point(268, 47);
+        this.comboBoxMode.Name = "comboBoxMode";
+        this.comboBoxMode.Size = new Size(115, 23);
+        this.comboBoxMode.TabIndex = 1;
+        this.comboBoxMode.SelectedIndex = 0;
 
         // buttonStart
         this.buttonStart.BackColor = accent;
@@ -132,7 +192,7 @@ partial class MainForm
         this.labelTitle.AutoSize = true;
         this.labelTitle.Font = new Font("Consolas", 9F);
         this.labelTitle.ForeColor = Color.FromArgb(150, 150, 150);
-        this.labelTitle.Location = new Point(355, 54);
+        this.labelTitle.Location = new Point(428, 54);
         this.labelTitle.Name = "labelTitle";
         this.labelTitle.Text = "⌨ ESC = 중지  |  터미널 로그";
 
@@ -202,4 +262,10 @@ partial class MainForm
     private ListBox listBoxPhrases;
     private Label labelExpiry;
     private Label labelWalletCount;
+    private Label labelPassword;
+    private TextBox textBoxPassword;
+    private Label labelMode;
+    private ComboBox comboBoxMode;
+    private Button buttonPasswordShow;
+    private ToolTip toolTipMain;
 }

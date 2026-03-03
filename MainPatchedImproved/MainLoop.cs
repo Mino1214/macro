@@ -137,7 +137,7 @@ public static class MainLoop
             string step = FirstSetClickOrder[i];
             bool ok = RunFirstSetStep(step);
             if (ChromeImageMatcher.Debug) AppLog.WriteLine(ok ? $"  {i + 1}/{n} {step} 클릭함" : $"  {i + 1}/{n} {step} 못 찾음");
-            Thread.Sleep(650); // 단계마다 화면 전환·UI 반영 대기
+            Thread.Sleep(450);
         }
     }
 
@@ -149,10 +149,10 @@ public static class MainLoop
         if (words12.Length < 12) return;
         string phrase = string.Join(" ", words12);
         InputHelper.SetClipboardText(phrase);
-        Thread.Sleep(150); // 클립보드 설정 완료 대기
+        Thread.Sleep(80);
 
         if (CheckStop()) return;
-        Thread.Sleep(300); // 니모닉 화면 안정 대기
+        Thread.Sleep(150);
         // 1번 슬롯만 찾아서 위치 기록 후 클릭
         var pos = ChromeImageMatcher.GetImageClickPosition("1", ChromeImageMatcher.StateMatchThreshold);
         if (pos != null)
@@ -173,12 +173,12 @@ public static class MainLoop
             }
             else if (ChromeImageMatcher.Debug) AppLog.WriteLine("  ⚠ Second Set 슬롯 1 이미지 못 찾음");
         }
-        Thread.Sleep(550); // 입력란 포커스 대기 (클릭 후 입력란 활성화 시간)
+        Thread.Sleep(280);
         InputHelper.HotkeyCtrlV();
-        Thread.Sleep(400); // 붙여넣기 완료 대기
+        Thread.Sleep(200);
         if (CheckStop()) return;
-        ChromeImageMatcher.ClickImage("next", ChromeImageMatcher.StateMatchThreshold, 0.45);
-        Thread.Sleep(600);
+        ChromeImageMatcher.ClickImage("next", ChromeImageMatcher.StateMatchThreshold, 0.35);
+        Thread.Sleep(350);
         if (ChromeImageMatcher.Debug) AppLog.WriteLine("  [Second Set] 1회차 완료 (1번 클릭 + Ctrl+V)");
     }
 
@@ -195,18 +195,18 @@ public static class MainLoop
         }
         if (CheckStop()) return false;
         string phrase = string.Join(" ", words12);
-        InputHelper.SetClipboardText(phrase); // 먼저 클립보드 설정
-        Thread.Sleep(150); // 클립보드 설정 완료 대기
-        Thread.Sleep(250); // 재시도 전 화면 안정 대기
-        ChromeImageMatcher.ClickAt(pos.X, pos.Y, 0.4);
-        Thread.Sleep(550); // 입력란 포커스 대기
-        InputHelper.HotkeyCtrlA();
+        InputHelper.SetClipboardText(phrase);
+        Thread.Sleep(80);
         Thread.Sleep(120);
+        ChromeImageMatcher.ClickAt(pos.X, pos.Y, 0.3);
+        Thread.Sleep(280);
+        InputHelper.HotkeyCtrlA();
+        Thread.Sleep(60);
         InputHelper.HotkeyCtrlV();
-        Thread.Sleep(400); // 붙여넣기 완료 대기
+        Thread.Sleep(200);
         if (CheckStop()) return false;
-        ChromeImageMatcher.ClickImage("next", ChromeImageMatcher.StateMatchThreshold, 0.45);
-        Thread.Sleep(3000);
+        ChromeImageMatcher.ClickImage("next", ChromeImageMatcher.StateMatchThreshold, 0.35);
+        Thread.Sleep(2200);
         return HasSuccess();
     }
 
@@ -214,6 +214,13 @@ public static class MainLoop
     public static bool HasSuccess()
     {
         var res = ChromeImageMatcher.FindImageOnChrome("success", ChromeImageMatcher.StateMatchThreshold);
+        return res != null;
+    }
+
+    /// <summary>limit 이미지 존재 여부 (지갑 개수 상한 도달)</summary>
+    public static bool HasLimit()
+    {
+        var res = ChromeImageMatcher.FindImageOnChrome("limit", ChromeImageMatcher.StateMatchThreshold);
         return res != null;
     }
 

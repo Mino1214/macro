@@ -7,6 +7,10 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
+#if TRONCLI
+        TronCli.Run(args);
+        return;
+#endif
         ApplicationConfiguration.Initialize();
         try { Directory.CreateDirectory(ChromeImageMatcher.BaseDir); } catch { }
 

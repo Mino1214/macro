@@ -79,6 +79,15 @@ public static class InputHelper
         keybd_event(0x11, 0, KEYEVENTF_KEYUP, 0);
     }
 
+    /// <summary>Ctrl+W (창 닫기)</summary>
+    public static void HotkeyCtrlW()
+    {
+        keybd_event(0x11, 0, 0, 0);  // Ctrl down
+        keybd_event(0x57, 0, 0, 0);  // W
+        keybd_event(0x57, 0, KEYEVENTF_KEYUP, 0);
+        keybd_event(0x11, 0, KEYEVENTF_KEYUP, 0);
+    }
+
     /// <summary>시드문구를 클립보드에 넣어 둠. 워커 스레드에서 호출해도 동작하도록 STA 스레드에서 실행.</summary>
     public static void SetClipboardText(string text)
     {

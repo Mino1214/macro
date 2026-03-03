@@ -16,6 +16,9 @@ public static class EdgeHelper
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetWindowText(nint hWnd, System.Text.StringBuilder lpString, int nMaxCount);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(nint hWnd, System.Text.StringBuilder lpClassName, int nMaxCount);
+
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(nint hWnd);
 
@@ -50,6 +53,128 @@ public static class EdgeHelper
     }
 
     private static nint _edgeHwnd;
+    private static nint _chromeHwnd;
+
+    private static string GetTitle(nint hWnd)
+    {
+        var sb = new System.Text.StringBuilder(512);
+        GetWindowText(hWnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    private static string GetClass(nint hWnd)
+    {
+        var sb = new System.Text.StringBuilder(256);
+        GetClassName(hWnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    private static bool IsChromeLikeWindow(nint hWnd, uint ourPid)
+    {
+        if (!IsWindowVisible(hWnd)) return false;
+
+        GetWindowThreadProcessId(hWnd, out uint pid);
+        if (pid == 0 || pid == ourPid) return false;
+
+        // 1) 윈도우 클래스 기반 (Process 접근 실패 대비)
+        var cls = GetClass(hWnd);
+        if (cls.StartsWith("Chrome_WidgetWin_", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // 2) 타이틀 기반 (클래스가 비정상인 케이스 대비)
+        var title = GetTitle(hWnd);
+        if (title.Contains("Google Chrome", StringComparison.OrdinalIgnoreCase) ||
+            title.Contains(" - Chrome", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // 3) 기존 방식: 프로세스명 기반 (가능할 때만)
+        try
+        {
+            using var proc = System.Diagnostics.Process.GetProcessById((int)pid);
+            if (proc.ProcessName.Equals("chrome", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        catch
+        {
+            // 프로세스 접근 실패는 "아니다"로 단정하지 않고, 위의 class/title로 걸러짐
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Chrome 창 (x, y, width, height) 픽셀 좌표. 없으면 null. Trust Wallet용 캡처 대상.
+    /// 감지 실패 시 열거된 창 목록을 data/chrome_detect_log.txt 에 기록.
+    /// </summary>
+    public static Rectangle? GetChromeRegion()
+    {
+        _chromeHwnd = nint.Zero;
+        uint ourPid = (uint)Environment.ProcessId;
+        var logEntries = new List<string>();
+
+        nint bestHwnd = nint.Zero;
+        long bestArea = 0;
+
+        EnumWindows((hWnd, _) =>
+        {
+            if (!IsWindowVisible(hWnd)) return true;
+            GetWindowThreadProcessId(hWnd, out uint pid);
+            if (pid == 0 || pid == ourPid) return true;
+            if (!GetWindowRect(hWnd, out var r)) return true;
+
+            int w = r.Right - r.Left;
+            int h = r.Bottom - r.Top;
+            if (w <= 50 || h <= 50) return true;
+
+            string processName = "";
+            try
+            {
+                using var proc = System.Diagnostics.Process.GetProcessById((int)pid);
+                processName = proc.ProcessName ?? "";
+            }
+            catch { processName = "(접근실패)"; }
+
+            string cls = GetClass(hWnd);
+            string title = GetTitle(hWnd);
+            if (title.Length > 80) title = title.Substring(0, 77) + "...";
+
+            logEntries.Add($"  PID={pid} Process={processName} Class={cls} Title={title} Size={w}x{h}");
+
+            if (!IsChromeLikeWindow(hWnd, ourPid)) return true;
+
+            long area = (long)w * h;
+            if (area > bestArea)
+            {
+                bestArea = area;
+                bestHwnd = hWnd;
+            }
+
+            return true;
+        }, nint.Zero);
+
+        _chromeHwnd = bestHwnd;
+        if (_chromeHwnd == nint.Zero && logEntries.Count > 0)
+        {
+            try
+            {
+                var logPath = Path.Combine(ChromeImageMatcher.BaseDir, "chrome_detect_log.txt");
+                var lines = new List<string>
+                {
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] GetChromeRegion: Chrome 미감지 (우리 PID={ourPid})",
+                    "열거된 창 (PID, 프로세스명, 클래스, 제목, 크기):",
+                    ""
+                };
+                lines.AddRange(logEntries);
+                File.WriteAllLines(logPath, lines, System.Text.Encoding.UTF8);
+            }
+            catch { }
+        }
+
+        if (_chromeHwnd == nint.Zero) return null;
+        if (!GetWindowRect(_chromeHwnd, out var rect)) return null;
+
+        return new Rectangle(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+    }
 
     /// <summary>
     /// Edge 창 (x, y, width, height) 픽셀 좌표. 없으면 null

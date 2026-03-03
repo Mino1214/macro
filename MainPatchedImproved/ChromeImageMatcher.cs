@@ -15,6 +15,12 @@ public static class ChromeImageMatcher
     /// <summary>리소스/설정 저장 폴더 (exe 옆 data). wordlist, pic, logo, server_url 등</summary>
     public static readonly string BaseDir = Path.Combine(ExeDir, "data");
     public static readonly string PicsKr = Path.Combine(BaseDir, "pic", "kr");
+    /// <summary>템플릿 이미지 하위 폴더 (kr = SafePal, trustwallet = Trust Wallet)</summary>
+    public static string PicsSubfolder { get; set; } = "kr";
+    /// <summary>현재 사용 중인 템플릿 폴더 경로</summary>
+    public static string PicsDir => Path.Combine(BaseDir, "pic", PicsSubfolder);
+    /// <summary>true면 캡처 대상을 Chrome 창으로 (Trust Wallet용)</summary>
+    public static bool UseChromeForCapture { get; set; } = false;
     public const int ChromeTopPadding = 120;
     public const double StateMatchThreshold = 0.8;
 
@@ -27,7 +33,8 @@ public static class ChromeImageMatcher
 
     private static string PicPath(string name)
     {
-        return name.EndsWith(".png") ? Path.Combine(PicsKr, name) : Path.Combine(PicsKr, name + ".png");
+        var dir = Path.Combine(BaseDir, "pic", PicsSubfolder);
+        return name.EndsWith(".png") ? Path.Combine(dir, name) : Path.Combine(dir, name + ".png");
     }
 
     /// <summary>단계 테스트용: 템플릿 파일 경로</summary>
@@ -39,14 +46,23 @@ public static class ChromeImageMatcher
         return EdgeHelper.GetEdgeRegion();
     }
 
-    /// <summary>캡처할 창 영역. UseForegroundWindow면 포커스 창(없으면 우리 창=시작 클릭 직후→Edge로 fallback), 아니면 Edge.</summary>
+    /// <summary>캡처할 창 영역. UseChromeForCapture면 Chrome, UseForegroundWindow면 포커스 창(없으면 Edge fallback), 아니면 Edge.</summary>
     public static Rectangle? GetEdgeCaptureRect()
     {
+        if (UseChromeForCapture)
+        {
+            var chrome = EdgeHelper.GetChromeRegion();
+            if (chrome == null) return null;
+            var rc = chrome.Value;
+            int cy0 = rc.Y, ch0 = rc.Height, pad0 = ChromeTopPadding;
+            int capY0 = Math.Max(0, cy0 - pad0);
+            int capH0 = (cy0 >= pad0) ? (ch0 + pad0) : (ch0 + cy0);
+            return new Rectangle(rc.X, capY0, rc.Width, capH0);
+        }
         if (UseForegroundWindow)
         {
             var fg = EdgeHelper.GetForegroundWindowRegion();
             if (fg != null) return fg.Value;
-            // 시작 버튼 누르면 우리 창이 포커스돼서 null → Edge 영역으로 캡처 (지갑/Edge 그 위치에 있으면 잡힘)
             var edgeFallback = EdgeHelper.GetEdgeRegion();
             if (edgeFallback != null)
             {
@@ -185,9 +201,21 @@ public static class ChromeImageMatcher
             var ((relX, relY), confidence, scale) = result.Value;
             int absX = capLeft + relX;
             int absY = capTop + relY;
+            LogMatch(name, threshold, confidence, absX, absY, click: false);
 
             return ((absX, absY), confidence, scale);
         }
+    }
+
+    private static void LogMatch(string name, double threshold, double confidence, int x, int y, bool click)
+    {
+        try
+        {
+            var path = Path.Combine(BaseDir, "image_match_log.txt");
+            var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {(click ? "CLICK" : "MATCH")} {name} th={threshold:F2} conf={confidence:F3} pos=({x},{y}){Environment.NewLine}";
+            File.AppendAllText(path, line, System.Text.Encoding.UTF8);
+        }
+        catch { }
     }
 
     /// <summary>
@@ -213,6 +241,7 @@ public static class ChromeImageMatcher
             }
         }
 
+        LogMatch(name, th, confidence, absX, absY, click: true);
         if (Debug)
         {
             AppLog.WriteLine($"  [클릭] {name} → ({absX}, {absY}) 신뢰도: {confidence:F3}, 스케일: {scale:F2}x");

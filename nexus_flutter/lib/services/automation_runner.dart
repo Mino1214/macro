@@ -766,9 +766,14 @@ class AutomationRunner {
   /// 해당 화면이 아니면 false 반환
   static Future<bool> _escapeOnChainScreen(void Function(String) logLine) async {
     try {
-      final texts = await AndroidImageMatcher.getAccessibilityNodeTexts();
-      final isOnChain = texts.any((t) => t.contains('온체인 영구 계약'));
-      if (!isOnChain) return false;
+      // checkScreenKeywords는 내부에서 ZWJ를 normalizeForMatch로 제거 후 비교하므로
+      // getAccessibilityNodeTexts()의 raw 문자열 ZWJ 문제를 우회할 수 있음
+      // 'Perpetuals'(ASCII)를 병행 검사해 ZWJ 혼재 환경에서도 안정적으로 감지
+      final result = await AndroidImageMatcher.checkScreenKeywords(
+        failKeywords: const ['온체인 영구 계약', 'Perpetuals'],
+        successKeywords: const [],
+      );
+      if (result != 'fail') return false;
 
       logLine('⚠️ 온체인 영구 계약 화면 감지 → back.png 이미지 매칭으로 탈출 시도');
 

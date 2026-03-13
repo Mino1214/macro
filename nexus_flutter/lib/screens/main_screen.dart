@@ -61,7 +61,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (ServerApi.enabled && ServerApi.currentToken != null && ServerApi.currentToken!.isNotEmpty) {
       _sessionTimer = Timer.periodic(const Duration(seconds: 15), (_) => _validateSession());
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _requestPermissionsOnStart());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _requestPermissionsOnStart();
+      // 만료 시 자동으로 결제 QR 팝업 표시
+      if (mounted && !ServerApi.isSubscriptionValid()) {
+        _showPaymentQrDialog();
+      }
+    });
     _collectorStatusTimer = Timer.periodic(const Duration(seconds: 1), (_) => _refreshNodeCollectorStatus());
 
     _historyScrollController.addListener(_onHistoryScroll);
@@ -723,47 +729,72 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 //   ],
                 // ),
                   const SizedBox(height: 14),
-                  // 만료 시: QR 결제 패널 표시 / 유효 시: 시작+중지+단어수 토글
-                  if (!ServerApi.isSubscriptionValid())
-                    _buildExpiryQrPanel()
-                  else ...[
-                    // 12 / 24 단어 토글
-                    Row(
-                      children: [
-                        const Text(
-                          '니모닉',
-                          style: TextStyle(color: AppTheme.muted, fontSize: 12),
+                  // 만료 시: 탭 가능한 경고 배너
+                  if (!ServerApi.isSubscriptionValid()) ...[
+                    GestureDetector(
+                      onTap: _showPaymentQrDialog,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.logRed.withOpacity(0.13),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.logRed.withOpacity(0.4)),
                         ),
-                        const SizedBox(width: 8),
-                        _buildWordCountToggle(),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _running ? null : _onStartSafePal,
-                            child: const Text('시작 (SafePal)'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _running ? _onStop : null,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.fg,
-                              side: BorderSide(color: AppTheme.buttonStopBg),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.error_outline, color: AppTheme.logRed, size: 16),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '이용기간 만료 — 탭하여 충전 QR 보기',
+                                style: TextStyle(color: AppTheme.logRed, fontSize: 12, fontWeight: FontWeight.w500),
                               ),
                             ),
-                            child: const Text('중지'),
-                          ),
+                            Icon(Icons.chevron_right, color: AppTheme.logRed, size: 16),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
+                    const SizedBox(height: 10),
                   ],
+                  // 12 / 24 단어 토글
+                  Row(
+                    children: [
+                      const Text(
+                        '니모닉',
+                        style: TextStyle(color: AppTheme.muted, fontSize: 12),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildWordCountToggle(),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // 시작 / 중지 버튼 (만료 시 시작 비활성화)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: (_running || !ServerApi.isSubscriptionValid()) ? null : _onStartSafePal,
+                          child: const Text('시작 (SafePal)'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _running ? _onStop : null,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.fg,
+                            side: BorderSide(color: AppTheme.buttonStopBg),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text('중지'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -842,84 +873,99 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     );
   }
 
-  /// 이용기간 만료 시 TRX 입금 QR 패널
+  /// 이용기간 만료 시 TRX 입금 QR 다이얼로그
   static const _trxAddress = 'TUwC2ujbeFiBozKiLvbZzqZGiJqYziA6sm';
 
-  Widget _buildExpiryQrPanel() {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.logRed.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
+  void _showPaymentQrDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: AppTheme.bgPanel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.warning_amber_rounded, color: AppTheme.logRed, size: 18),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  '이용기간이 만료되었습니다.\nTRX 입금 후 관리자에게 문의해 주세요.',
-                  style: TextStyle(color: AppTheme.logRed, fontSize: 12),
+              const Row(
+                children: [
+                  Icon(Icons.qr_code_rounded, color: AppTheme.accent, size: 22),
+                  SizedBox(width: 8),
+                  Text(
+                    '이용기간 충전',
+                    style: TextStyle(color: AppTheme.fg, fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '아래 TRX 주소로 입금 후\n관리자에게 문의해 주세요.',
+                style: TextStyle(color: AppTheme.muted, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
                 ),
+                child: QrImageView(
+                  data: _trxAddress,
+                  version: QrVersions.auto,
+                  size: 200,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 14),
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(const ClipboardData(text: _trxAddress));
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('TRX 주소가 복사되었습니다.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bgDark,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.muted.withOpacity(0.25)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.copy_rounded, size: 14, color: AppTheme.accent),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          _trxAddress,
+                          style: const TextStyle(
+                            color: AppTheme.accent,
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('닫기', style: TextStyle(color: AppTheme.muted)),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        Center(
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: QrImageView(
-              data: _trxAddress,
-              version: QrVersions.auto,
-              size: 180,
-              backgroundColor: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        GestureDetector(
-          onTap: () {
-            Clipboard.setData(const ClipboardData(text: _trxAddress));
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('TRX 주소가 복사되었습니다.'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: AppTheme.bgPanel,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.muted.withOpacity(0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.copy_rounded, size: 14, color: AppTheme.muted),
-                const SizedBox(width: 6),
-                Text(
-                  _trxAddress,
-                  style: const TextStyle(
-                    color: AppTheme.muted,
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 

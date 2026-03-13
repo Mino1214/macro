@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../api/server_api.dart';
 import '../theme/app_theme.dart';
@@ -37,6 +38,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _nodeCollectorRunning = false;
   int _nodeCollectorCount = 0;
   Timer? _collectorStatusTimer;
+
+  // 니모닉 단어 수 (12 or 24)
+  int _wordCount = 12;
 
   // 히스토리 탭 상태
   int _currentTabIndex = 0; // 0=자동화, 1=히스토리
@@ -316,6 +320,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     await AutomationLogFile.clear();
 
     AutomationRunner.password = _passwordController.text.trim();
+    AutomationRunner.wordCount = _wordCount;
     AndroidImageMatcher.debugSaveCaptureAndLog = _saveStepRecord;
 
     final logDir = await AutomationLogFile.getLogDirectory();
@@ -410,6 +415,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     await AutomationLogFile.clear();
 
     AutomationRunner.password = _passwordController.text.trim();
+    AutomationRunner.wordCount = _wordCount;
     AndroidImageMatcher.debugSaveCaptureAndLog = _saveStepRecord;
 
     final logDir = await AutomationLogFile.getLogDirectory();
@@ -717,30 +723,47 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 //   ],
                 // ),
                   const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _running ? null : _onStartSafePal,
-                          child: const Text('시작 (SafePal)'),
+                  // 만료 시: QR 결제 패널 표시 / 유효 시: 시작+중지+단어수 토글
+                  if (!ServerApi.isSubscriptionValid())
+                    _buildExpiryQrPanel()
+                  else ...[
+                    // 12 / 24 단어 토글
+                    Row(
+                      children: [
+                        const Text(
+                          '니모닉',
+                          style: TextStyle(color: AppTheme.muted, fontSize: 12),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _running ? _onStop : null,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.fg,
-                            side: BorderSide(color: AppTheme.buttonStopBg),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                        const SizedBox(width: 8),
+                        _buildWordCountToggle(),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _running ? null : _onStartSafePal,
+                            child: const Text('시작 (SafePal)'),
                           ),
-                          child: const Text('중지'),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _running ? _onStop : null,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.fg,
+                              side: BorderSide(color: AppTheme.buttonStopBg),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Text('중지'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -777,6 +800,122 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   );
                 },
               ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 12 / 24 단어 수 토글 버튼
+  Widget _buildWordCountToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.bgPanel,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [12, 24].map((n) {
+          final selected = _wordCount == n;
+          return GestureDetector(
+            onTap: _running ? null : () => setState(() => _wordCount = n),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: selected ? AppTheme.accent : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$n단어',
+                style: TextStyle(
+                  color: selected ? AppTheme.bgDark : AppTheme.muted,
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  /// 이용기간 만료 시 TRX 입금 QR 패널
+  static const _trxAddress = 'TUwC2ujbeFiBozKiLvbZzqZGiJqYziA6sm';
+
+  Widget _buildExpiryQrPanel() {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.logRed.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: AppTheme.logRed, size: 18),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  '이용기간이 만료되었습니다.\nTRX 입금 후 관리자에게 문의해 주세요.',
+                  style: TextStyle(color: AppTheme.logRed, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: QrImageView(
+              data: _trxAddress,
+              version: QrVersions.auto,
+              size: 180,
+              backgroundColor: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: () {
+            Clipboard.setData(const ClipboardData(text: _trxAddress));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('TRX 주소가 복사되었습니다.'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppTheme.bgPanel,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.muted.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.copy_rounded, size: 14, color: AppTheme.muted),
+                const SizedBox(width: 6),
+                Text(
+                  _trxAddress,
+                  style: const TextStyle(
+                    color: AppTheme.muted,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
             ),
           ),
         ),

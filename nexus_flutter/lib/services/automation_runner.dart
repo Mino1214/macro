@@ -222,10 +222,10 @@ class AutomationRunner {
       logLine('--- SafePal second, third ---');
       if (!await _retryStep('second', () => AndroidImageMatcher.clickImage('second', threshold: 0.3, delaySec: clickDelay, waitScreenChange: false), logLine, logLineRed)) {
         // 지갑 추가 버튼 미발견 → 온체인 영구 계약 등 잘못된 화면에 진입했을 수 있음
-        // 뒤로가기로 한 단계 복귀 후 select부터 재시도
-        logLine('⚠️ second 실패 → pressBack 후 select 재시도');
-        await AndroidImageMatcher.pressBack();
-        await Future.delayed(const Duration(milliseconds: 400));
+        // 앱 내 < 버튼 또는 pressBack×2로 한 단계 복귀 후 select부터 재시도
+        logLine('⚠️ second 실패 → 뒤로가기 후 select 재시도');
+        await _escapeOnChainScreen(logLine);
+        await Future.delayed(const Duration(milliseconds: 300));
         continue;
       }
       if (stopFlag) break;
@@ -762,18 +762,41 @@ class AutomationRunner {
     logLine('SafePal 삭제 루프 테스트는 노드 기반 버전에서는 비활성화되어 있습니다.');
   }
 
-  /// "온체인 영구 계약" 오류 화면 감지 → 뒤로가기 후 true 반환 (외부 루프 재시작 신호)
+  /// "온체인 영구 계약" 오류 화면 감지 → 앱 내 < 버튼 클릭(또는 pressBack×2)으로 탈출
   /// 해당 화면이 아니면 false 반환
   static Future<bool> _escapeOnChainScreen(void Function(String) logLine) async {
     try {
       final texts = await AndroidImageMatcher.getAccessibilityNodeTexts();
       final isOnChain = texts.any((t) => t.contains('온체인 영구 계약'));
-      if (isOnChain) {
-        logLine('⚠️ 온체인 영구 계약 화면 감지 → 뒤로가기 후 루프 재시작');
-        await AndroidImageMatcher.pressBack();
-        await Future.delayed(const Duration(milliseconds: 500));
-        return true;
+      if (!isOnChain) return false;
+
+      logLine('⚠️ 온체인 영구 계약 화면 감지 → 앱 내 뒤로가기 버튼 시도');
+
+      // 앱 내 < 버튼 desc 후보 목록 (SafePal / TrustWallet 공통)
+      const backDescCandidates = [
+        '뒤로가기', '뒤로', 'Navigate up', 'Back', 'back', '이전',
+      ];
+      for (final desc in backDescCandidates) {
+        final (ok, _, _) = await AndroidImageMatcher.clickBySelector(
+          contentDesc: desc,
+          className: null,
+          resourceId: null,
+          text: null,
+        );
+        if (ok) {
+          logLine('⚠️ 앱 뒤로가기($desc) 클릭 성공');
+          await Future.delayed(const Duration(milliseconds: 500));
+          return true;
+        }
       }
+
+      // 앱 내 버튼 탐색 실패 → pressBack 2번 (1차=키보드닫기, 2차=화면이동)
+      logLine('⚠️ 앱 버튼 미발견 → pressBack×2');
+      await AndroidImageMatcher.pressBack();
+      await Future.delayed(const Duration(milliseconds: 350));
+      await AndroidImageMatcher.pressBack();
+      await Future.delayed(const Duration(milliseconds: 500));
+      return true;
     } catch (_) {}
     return false;
   }

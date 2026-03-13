@@ -762,7 +762,7 @@ class AutomationRunner {
     logLine('SafePal 삭제 루프 테스트는 노드 기반 버전에서는 비활성화되어 있습니다.');
   }
 
-  /// "온체인 영구 계약" 오류 화면 감지 → 앱 내 < 버튼 클릭(또는 pressBack×2)으로 탈출
+  /// "온체인 영구 계약" 오류 화면 감지 → back.png 이미지 매칭으로 < 버튼 클릭
   /// 해당 화면이 아니면 false 반환
   static Future<bool> _escapeOnChainScreen(void Function(String) logLine) async {
     try {
@@ -770,28 +770,30 @@ class AutomationRunner {
       final isOnChain = texts.any((t) => t.contains('온체인 영구 계약'));
       if (!isOnChain) return false;
 
-      logLine('⚠️ 온체인 영구 계약 화면 감지 → 앱 내 뒤로가기 버튼 시도');
+      logLine('⚠️ 온체인 영구 계약 화면 감지 → back.png 이미지 매칭으로 탈출 시도');
 
-      // 앱 내 < 버튼 desc 후보 목록 (SafePal / TrustWallet 공통)
-      const backDescCandidates = [
-        '뒤로가기', '뒤로', 'Navigate up', 'Back', 'back', '이전',
-      ];
-      for (final desc in backDescCandidates) {
-        final (ok, _, _) = await AndroidImageMatcher.clickBySelector(
-          contentDesc: desc,
-          className: null,
-          resourceId: null,
-          text: null,
+      // back.png는 assets/data/app/ 에 있으므로 templateSubdir를 임시로 'app'으로 전환
+      final prevSubdir = AndroidImageMatcher.templateSubdir;
+      AndroidImageMatcher.templateSubdir = 'app';
+      try {
+        // selectorOverrides에 'back' 키가 없으므로 바로 OpenCV 이미지 매칭 사용
+        final clicked = await AndroidImageMatcher.clickImage(
+          'back',
+          threshold: 0.6,
+          delaySec: 0.3,
+          waitScreenChange: false,
         );
-        if (ok) {
-          logLine('⚠️ 앱 뒤로가기($desc) 클릭 성공');
+        if (clicked) {
+          logLine('⚠️ back.png 클릭 성공 → 루프 재시작');
           await Future.delayed(const Duration(milliseconds: 500));
           return true;
         }
+        logLine('⚠️ back.png 미발견 → pressBack×2 폴백');
+      } finally {
+        AndroidImageMatcher.templateSubdir = prevSubdir;
       }
 
-      // 앱 내 버튼 탐색 실패 → pressBack 2번 (1차=키보드닫기, 2차=화면이동)
-      logLine('⚠️ 앱 버튼 미발견 → pressBack×2');
+      // 이미지 매칭 실패 시 pressBack 2번 (1차=키보드닫기, 2차=화면이동)
       await AndroidImageMatcher.pressBack();
       await Future.delayed(const Duration(milliseconds: 350));
       await AndroidImageMatcher.pressBack();

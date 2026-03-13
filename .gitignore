@@ -12,5 +12,8 @@ __pycache__/
 bin/
 obj/
 MainPatchedImproved/publish/
+MainPatchedImproved/publish-troncli/
+MainPatchedImproved/publish-trustwallet/
 *.zip
 **/publish*.zip
+*.exe

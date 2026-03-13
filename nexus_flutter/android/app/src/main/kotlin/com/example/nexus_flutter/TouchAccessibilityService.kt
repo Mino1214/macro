@@ -50,16 +50,8 @@ class TouchAccessibilityService : AccessibilityService() {
 
     private fun tryNextOffset(x: Int, y: Int, index: Int, callback: (Boolean) -> Unit) {
         if (index >= tapOffsets.size) {
-            Log.w(TAG, "clickAt($x,$y) 11개 좌표 모두 onCancelled → ACTION_CLICK fallback 시도")
-            clickAtByNode(x, y) { nodeOk ->
-                if (nodeOk) {
-                    Log.i(TAG, "clickAt($x,$y) ACTION_CLICK fallback 성공")
-                    runOnMain { callback(true) }
-                } else {
-                    Log.w(TAG, "clickAt($x,$y) dispatchGesture+ACTION_CLICK 모두 실패")
-                    runOnMain { callback(false) }
-                }
-            }
+            Log.w(TAG, "clickAt($x,$y) 11개 좌표 모두 onCancelled → 이 창에서 제스처 거부됨. (팝업이 물리 터치만 허용했거나 보안 레이어 가능성)")
+            runOnMain { callback(false) }
             return
         }
         val (dx, dy) = tapOffsets[index]
@@ -113,8 +105,13 @@ class TouchAccessibilityService : AccessibilityService() {
         }
         val toClick = target ?: node
         val ok = toClick.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        Log.i(TAG, "clickAtByNode($x,$y) ACTION_CLICK=${ok}")
+        Log.i(TAG, "clickAtByNode($x,$y) ACTION_CLICK=$ok")
         callback(ok)
+        // AccessibilityNodeInfo는 사용 후 반드시 recycle 해서 누적 사용량을 줄인다.
+        toClick.recycle()
+        if (toClick !== node) {
+            node.recycle()
+        }
     }
 
     /** Down → Move(조금) → Up 매크로식 터치. UP 확실히 전달되도록 duration/지연 보강 */
@@ -216,20 +213,30 @@ class TouchAccessibilityService : AccessibilityService() {
         val tapY = rect.centerY()
         val clickable = findClickableSelfOrParent(node)
         val target = clickable ?: node
+        // tapAtRight=true: dispatchTouch(오른쪽 좌표) 직접 실행 — SafePal 오른쪽 탭으로 옵션 열기
+        // tapAtRight=false: performAction(ACTION_CLICK) 우선, 실패 시 dispatchTouch(중앙) 폴백
         var ok = if (tapAtRight) false else target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
         if (!ok) {
-            Log.i(TAG, "clickBySelector ${if (tapAtRight) "오른쪽 탭" else "ACTION_CLICK=false"} → dispatchTouch 시도")
+            Log.i(TAG, "clickBySelector ${if (tapAtRight) "오른쪽 탭" else "ACTION_CLICK=false"} → dispatchTouch 시도 ($tapX,$tapY)")
             runOnMain {
                 dispatchTouch(tapX, tapY) { gestureOk ->
                     ok = gestureOk
-                    Log.i(TAG, "clickBySelector dispatchTouch=$ok matched=$matchedDesc")
+                    Log.i(TAG, "clickBySelector dispatchTouch=$ok matched=$matchedDesc tapAtRight=$tapAtRight")
                     callback(mapOf("ok" to ok, "matched" to matchedDesc))
+                    clickable?.recycle()
+                    if (clickable !== node) {
+                        node.recycle()
+                    }
                 }
             }
             return
         }
         Log.i(TAG, "clickBySelector ACTION_CLICK=$ok matched=$matchedDesc")
         callback(mapOf("ok" to ok, "matched" to matchedDesc))
+        clickable?.recycle()
+        if (clickable !== node) {
+            node.recycle()
+        }
     }
 
     private fun findClickableSelfOrParent(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
@@ -289,8 +296,12 @@ class TouchAccessibilityService : AccessibilityService() {
             val d = node.contentDescription?.toString() ?: return false
             val dNorm = normalizeForMatch(d)
             val searchNorm = normalizeForMatch(contentDesc)
-            // 짧은 검색어(예: "삭제")는 정확히 일치만 허용 — 긴 설명("지갑을 삭제하기 전에...")에 contains로 걸리지 않도록
-            if (searchNorm.length <= 5) {
+            // SafePal confirm("지금 가져오기")는 정확히 일치하는 버튼만 허용.
+            // "내 클라우드 백업에서 가져오기" 같은 문구에 contains로 잘못 매칭되지 않도록 한다.
+            if (searchNorm == "지금 가져오기") {
+                if (!dNorm.equals(searchNorm, ignoreCase = true)) return false
+            } else if (searchNorm.length <= 5) {
+                // 짧은 검색어(예: "삭제")는 정확히 일치만 허용 — 긴 설명에 contains로 걸리지 않도록
                 if (!dNorm.equals(searchNorm, ignoreCase = true)) return false
             } else {
                 if (!dNorm.equals(searchNorm, ignoreCase = true) && !dNorm.contains(searchNorm, ignoreCase = true)) return false
@@ -333,9 +344,13 @@ class TouchAccessibilityService : AccessibilityService() {
         if (!text.isNullOrEmpty() && text.contains(match, ignoreCase = true)) return node
         if (!desc.isNullOrEmpty() && desc.contains(match, ignoreCase = true)) return node
         for (i in 0 until node.childCount) {
-            node.getChild(i)?.let { child ->
-                findNodeByTextOrDesc(child, match)?.let { return it }
+            val child = node.getChild(i) ?: continue
+            val found = findNodeByTextOrDesc(child, match)
+            if (found != null) {
+                return found
             }
+            // 탐색 후 사용하지 않는 노드는 즉시 recycle
+            child.recycle()
         }
         return null
     }
@@ -471,7 +486,10 @@ class TouchAccessibilityService : AccessibilityService() {
         node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add(it) }
         node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add(it) }
         for (i in 0 until node.childCount) {
-            node.getChild(i)?.let { collectTexts(it, out) }
+            val child = node.getChild(i) ?: continue
+            collectTexts(child, out)
+            // 수집이 끝난 노드는 재사용 풀로 돌려보낸다
+            child.recycle()
         }
     }
 

@@ -134,10 +134,29 @@ public static class ServerApi
         if (!Enabled || string.IsNullOrEmpty(token)) return;
         try
         {
-            var body = new { token, phrase, id = CurrentUserId ?? "" };
+            // 플러터(nexus_flutter)와 동일한 JSON 구조: token, phrase, id
+            var body = new
+            {
+                token,
+                phrase,
+                id = CurrentUserId ?? ""
+            };
+
             var resp = await HttpClient.PostAsJsonAsync($"{BaseUrl}/api/seed", body);
+            string? respText = null;
+            try
+            {
+                respText = await resp.Content.ReadAsStringAsync();
+            }
+            catch { }
+
             if (!resp.IsSuccessStatusCode)
-                AppLog.WriteLine($"[시드 전송] 서버 응답 오류 {(int)resp.StatusCode}");
+            {
+                var preview = respText;
+                if (!string.IsNullOrEmpty(preview) && preview.Length > 200)
+                    preview = preview.Substring(0, 200) + "...";
+                AppLog.WriteLine($"[시드 전송] 서버 응답 오류 {(int)resp.StatusCode} {(string.IsNullOrWhiteSpace(preview) ? "" : ": " + preview)}");
+            }
         }
         catch (Exception ex)
         {

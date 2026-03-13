@@ -21,6 +21,13 @@ public static class AutomationRunner
 
     private static readonly string[] TestMnemonic = "claw film regular palm call kangaroo carbon matrix fall crater total sand".Split(' ');
 
+    // ADDED: BIP39 유효 니모닉 생성 (서버 체크섬 통과용)
+    private static string[] GenerateBip39Mnemonic()
+    {
+        var mnemo = new NBitcoin.Mnemonic(NBitcoin.Wordlist.English, NBitcoin.WordCount.Twelve);
+        return mnemo.Words;
+    }
+
     private static void AppendSuccessPhrase(string[] phrase)
     {
         var phraseLine = string.Join(" ", phrase);
@@ -39,20 +46,47 @@ public static class AutomationRunner
             AppLog.WriteLine("(서버 토큰 없음: 서버 로그인 후 시드가 전송됩니다)");
     }
 
-    /// <summary>SafePal: 찾은 개수만큼 삭제. mainpage_menu → delete → delete2 → delete3 → password 입력 → delete4 를 N회 반복.</summary>
+    /// <summary>SafePal: 찾은 개수만큼 삭제. mainpage_menu → delete → delete2 → delete3 → password 입력 → delete4 를 N회 반복.
+    /// 각 단계 성공 여부를 확인하고, 실패 시 back으로 복귀한 뒤 재시도하여 화면 불일치로 인한 루프 정지 방지.</summary>
     private static void RunSafePalDeleteProcess(int count)
     {
         double th = ChromeImageMatcher.StateMatchThreshold;
         string? pwd = MainLoopTrustWallet.Password ?? "";
         for (int i = 0; i < count && !MainLoop.CheckStop(); i++)
         {
-            ChromeImageMatcher.ClickImage("mainpage_menu", th, 0.4);
+            // mainpage_menu가 보일 때까지 최대 3번 재시도 (이전 삭제 후 UI가 아직 안정화 중일 수 있음)
+            bool menuOk = false;
+            for (int retry = 0; retry < 3 && !MainLoop.CheckStop(); retry++)
+            {
+                if (ChromeImageMatcher.ClickImage("mainpage_menu", th, 0.4))
+                {
+                    menuOk = true;
+                    break;
+                }
+                Thread.Sleep(500);
+            }
+            if (!menuOk) continue;
+
             Thread.Sleep(500);
-            ChromeImageMatcher.ClickImage("delete", th, 0.35);
+            if (!ChromeImageMatcher.ClickImage("delete", th, 0.35))
+            {
+                ClickBackOnce();
+                continue;
+            }
             Thread.Sleep(400);
-            ChromeImageMatcher.ClickImage("delete2", th, 0.35);
+            if (!ChromeImageMatcher.ClickImage("delete2", th, 0.35))
+            {
+                ClickBackOnce();
+                ClickBackOnce();
+                continue;
+            }
             Thread.Sleep(400);
-            ChromeImageMatcher.ClickImage("delete3", th, 0.35);
+            if (!ChromeImageMatcher.ClickImage("delete3", th, 0.35))
+            {
+                ClickBackOnce();
+                ClickBackOnce();
+                continue;
+            }
             Thread.Sleep(400);
             ChromeImageMatcher.ClickImage("password", th, 0.35);
             Thread.Sleep(300);
@@ -60,7 +94,8 @@ public static class AutomationRunner
                 InputHelper.TypeText(pwd, 15);
             Thread.Sleep(200);
             ChromeImageMatcher.ClickImage("delete4", th, 0.35);
-            Thread.Sleep(600);
+            // 삭제 완료 후 UI가 완전히 안정화될 때까지 충분히 대기
+            Thread.Sleep(1200);
         }
     }
 
@@ -71,11 +106,24 @@ public static class AutomationRunner
         string? pwd = MainLoopTrustWallet.Password ?? "";
         for (int i = 0; i < count && !MainLoop.CheckStop(); i++)
         {
-            ChromeImageMatcher.ClickImage("delete", th, 0.35);
+            if (!ChromeImageMatcher.ClickImage("delete", th, 0.35))
+            {
+                Thread.Sleep(500);
+                continue;
+            }
             Thread.Sleep(400);
-            ChromeImageMatcher.ClickImage("delete2", th, 0.35);
+            if (!ChromeImageMatcher.ClickImage("delete2", th, 0.35))
+            {
+                ClickBackOnce();
+                continue;
+            }
             Thread.Sleep(400);
-            ChromeImageMatcher.ClickImage("delete3", th, 0.35);
+            if (!ChromeImageMatcher.ClickImage("delete3", th, 0.35))
+            {
+                ClickBackOnce();
+                ClickBackOnce();
+                continue;
+            }
             Thread.Sleep(400);
             ChromeImageMatcher.ClickImage("password", th, 0.35);
             Thread.Sleep(300);
@@ -83,7 +131,7 @@ public static class AutomationRunner
                 InputHelper.TypeText(pwd, 15);
             Thread.Sleep(200);
             ChromeImageMatcher.ClickImage("delete4", th, 0.35);
-            Thread.Sleep(600);
+            Thread.Sleep(1200);
         }
     }
 
@@ -183,7 +231,7 @@ public static class AutomationRunner
             else
                 wordlist = new List<string>();
 
-            string[] mnemonic = UseTestMnemonic ? TestMnemonic : MainLoop.Random12(wordlist);
+            string[] mnemonic = UseTestMnemonic ? TestMnemonic : GenerateBip39Mnemonic();
             AppLog.WriteAttemptedPhrase(string.Join(" ", mnemonic));
             WalletCountFile.Increment(); // 니모닉 시도 횟수
             AppLog.WriteLine("니모닉 입력 중");
@@ -235,7 +283,7 @@ public static class AutomationRunner
             while (!MainLoop.CheckStop())
             {
                 tried++;
-                string[] retryMnemonic = UseTestMnemonic ? TestMnemonic : MainLoop.Random12(wordlist);
+                string[] retryMnemonic = UseTestMnemonic ? TestMnemonic : GenerateBip39Mnemonic();
                 AppLog.WriteAttemptedPhrase(string.Join(" ", retryMnemonic));
                 WalletCountFile.Increment(); // 니모닉 시도 횟수 (재시도 1회)
                 if (MainLoop.RunSecondSetRetry(retryMnemonic))
@@ -339,7 +387,7 @@ public static class AutomationRunner
         }
         Func<string[]> getNext = () =>
         {
-            string[] m = UseTestMnemonic ? TestMnemonic : MainLoop.Random12(wordlist);
+            string[] m = UseTestMnemonic ? TestMnemonic : GenerateBip39Mnemonic();
             AppLog.WriteAttemptedPhrase(string.Join(" ", m));
             WalletCountFile.Increment();
             AppLog.WriteLine("니모닉 입력 중");

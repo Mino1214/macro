@@ -77,11 +77,12 @@ class ServerApi {
   }
 
   /// 로그인 - POST /api/login
-  static Future<({bool ok, String? token, bool kicked})> loginAsync(
+  /// expired: 인증은 성공했으나 이용기간 만료인 경우 true (메인 화면으로 진입해 QR 표시)
+  static Future<({bool ok, String? token, bool kicked, bool expired})> loginAsync(
     String id,
     String password,
   ) async {
-    if (!enabled) return (ok: false, token: null, kicked: false);
+    if (!enabled) return (ok: false, token: null, kicked: false, expired: false);
     try {
       final resp = await _client
           .post(
@@ -95,10 +96,23 @@ class ServerApi {
         final token = root['token']?.toString();
         final kicked = root['kicked'] == true;
         setSubscriptionFromLogin(root);
-        return (ok: token != null, token: token, kicked: kicked);
+        final expired = token == null && !isSubscriptionValid() && subscriptionExpiry != null;
+        return (ok: token != null, token: token, kicked: kicked, expired: expired);
+      }
+      // 4xx 응답도 바디를 파싱해 만료 여부 판단
+      // (서버가 만료 시 403/402 등을 반환하는 경우 대비)
+      if (resp.statusCode >= 400 && resp.statusCode < 500) {
+        try {
+          final root = jsonDecode(resp.body) as Map<String, dynamic>;
+          setSubscriptionFromLogin(root);
+          if (subscriptionExpiry != null && !isSubscriptionValid()) {
+            // 계정 자체는 존재하지만 만료 → expired 플래그로 반환
+            return (ok: false, token: null, kicked: false, expired: true);
+          }
+        } catch (_) {}
       }
     } catch (_) {}
-    return (ok: false, token: null, kicked: false);
+    return (ok: false, token: null, kicked: false, expired: false);
   }
 
   static void setSubscriptionFromLogin(Map<String, dynamic> loginResponseRoot) {

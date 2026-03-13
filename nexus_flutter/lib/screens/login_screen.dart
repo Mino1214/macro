@@ -68,6 +68,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
 
+    // 만료로 인한 진입: 메인 화면에서 QR 표시
+    if (result.expired) {
+      ServerApi.currentToken = result.token;
+      ServerApi.currentUserId = id;
+      _openMain();
+      return;
+    }
+
     if (!result.ok || result.token == null) {
       setState(() {
         _errorText = '아이디 또는 비밀번호가 올바르지 않습니다.';
@@ -85,7 +93,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 만료된 경우에도 메인 화면으로 진입 (메인 화면에서 QR 표시)
     ServerApi.currentToken = result.token;
     ServerApi.currentUserId = id;
     _openMain();
